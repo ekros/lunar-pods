@@ -16,6 +16,7 @@ const map = [];
 let loop = 0;
 let selectedTile = [0, 0];
 let uranium = 500;
+const cooldownTimers = {};
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
@@ -48,16 +49,22 @@ const buildings = {
     hp: 500,
     area: 4,
     cost: 300,
+    cooldown: 30,
+    cooldownRemaining: 0,
   },
   turret: {
     hp: 200,
     area: 2,
     cost: 200,
+    cooldown: 5,
+    cooldownRemaining: 0,
   },
   mine: {
     hp: 100,
     area: 1,
-    cost: 100
+    cost: 100,
+    cooldown: 10,
+    cooldownRemaining: 0,
   }
 };
 
@@ -126,7 +133,7 @@ const generateAoI = (step = 0, currentAoIScore = 4) => {
 
     // neibourhood algorithm (step 0)
     if (step === 0) {
-      if (cell.building) {
+      if (cell?.building) {
         if (cell.building.commandCenter) {
           cell.aoiScore = cell.building.commandCenter.area;
         } else if (cell.building.turret) {
@@ -136,7 +143,7 @@ const generateAoI = (step = 0, currentAoIScore = 4) => {
         }
         cell.aoi = PLAYERS.HUMAN;
       }
-    } else if (step >= 1 && cell.aoiScore === currentAoIScore) {
+    } else if (step >= 1 && cell && cell.aoiScore === currentAoIScore) {
       if (map[i][j - 1] && !map[i][j - 1]?.aoiScore) {
         map[i][j - 1].aoiScore = cell.aoiScore - 1;
         map[i][j - 1].aoi = cell.aoi;
@@ -145,11 +152,11 @@ const generateAoI = (step = 0, currentAoIScore = 4) => {
         map[i][j + 1].aoiScore = cell.aoiScore - 1;
         map[i][j + 1].aoi = cell.aoi;
       }
-      if (i > 0 && !map[i - 1][j]?.aoiScore) {
+      if (i > 0 && map[i - 1][j] && !map[i - 1][j]?.aoiScore) {
         map[i - 1][j].aoiScore = cell.aoiScore - 1;
         map[i - 1][j].aoi = cell.aoi;
       }
-      if (i < MAP_WIDTH && map[i + 1] && !map[i + 1][j]?.aoiScore) {
+      if (i < MAP_WIDTH && map[i + 1][j] && !map[i + 1][j]?.aoiScore) {
         map[i + 1][j].aoiScore = cell.aoiScore - 1;
         map[i + 1][j].aoi = cell.aoi;
       }
@@ -215,7 +222,7 @@ const generateMap = (width, height) => {
 const gatherResources = () => {
   map.forEach((col, i) => {
     col.forEach((cell, j) => {
-      if (cell.building?.mine) {
+      if (cell?.building?.mine) {
         uranium += URANIUM_INC;
       }
     });
@@ -235,10 +242,21 @@ const gameLoop = () => {
   window.requestAnimationFrame(gameLoop);
 };
 
+const startCooldown = buildingName => {
+  buildings[buildingName].cooldownRemaining = buildings[buildingName].cooldown;
+  cooldownTimers[buildingName] = setInterval(() => {
+    buildings[buildingName].cooldownRemaining -= 1;
+    if (buildings[buildingName].cooldownRemaining === 0) {
+      clearInterval(cooldownTimers[buildingName]);
+    }
+  }, 1000);
+}
+
 const build = buildingName => {
-  if (uranium >= buildings[buildingName].cost) {
+  if (uranium >= buildings[buildingName].cost && buildings[buildingName].cooldownRemaining === 0) {
     map[selectedTile[0]][selectedTile[1]].building = { [buildingName]: buildings[buildingName], createdAt: loop };
     uranium -= buildings[buildingName].cost;
+    startCooldown(buildingName);
   }
 }
 
