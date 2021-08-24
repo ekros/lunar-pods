@@ -2,9 +2,9 @@ const HEX_SIZE = 48;
 const VERT_HEX_OFFSET = 24;
 const HORIZ_HEX_OFFSET = -10;
 const HORIZ_MAP_OFFSET = 10;
-const VERT_MAP_OFFSET = 50;
-const URANIUM_IN_MAP = 5;
-// const MAX_URANIUM_IN_MAP = 5; TODO: add max?
+const VERT_MAP_OFFSET = 40;
+const HELIUM3_IN_MAP = 5;
+// const MAX_HELIUM3_IN_MAP = 5; TODO: add max?
 const RAISED_TILES_IN_MAP = 5;
 const RAISED_OFFSET = -10;
 const MOUNTAIN_TILES = 20;
@@ -12,12 +12,12 @@ const SEL_BRIGHTNESS_MIN = 80;
 const SEL_BRIGHTNESS_MAX = 120;
 const MAP_WIDTH = 20;
 const MAP_HEIGHT = 8;
-const URANIUM_INC = 10;
+const HELIUM3_INC = 10;
 
 const map = [];
 let loop = 0;
 let selectedTile = [0, 0];
-let uranium = 500;
+let helium3 = 500;
 const cooldownTimers = {};
 
 const canvas = document.getElementById("game");
@@ -28,8 +28,8 @@ const tileDark = new Image(HEX_SIZE, HEX_SIZE);
 tileDark.src = 'tile-dark.png';
 const mountainTile = new Image(HEX_SIZE, HEX_SIZE);
 mountainTile.src = 'mountain.png';
-const uraniumTile = new Image(HEX_SIZE, HEX_SIZE);
-uraniumTile.src = 'uranium.png';
+const helium3Tile = new Image(HEX_SIZE, HEX_SIZE);
+helium3Tile.src = 'helium3.png';
 const ccTile = new Image(HEX_SIZE, HEX_SIZE);
 ccTile.src = 'command-center.png';
 const mineTile = new Image(HEX_SIZE, HEX_SIZE);
@@ -73,7 +73,6 @@ const buildings = {
 };
 
 const drawMap = () => {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
   // highlight effect
   selectionBrightness += selectionBrightnessInc;
   if (selectionBrightness >= SEL_BRIGHTNESS_MAX || selectionBrightness <= SEL_BRIGHTNESS_MIN) {
@@ -105,8 +104,8 @@ const drawMap = () => {
           if (cell.aoi) {
             ctx.drawImage(aoiTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
           }
-          if (cell && cell.type === "uranium") {
-            ctx.drawImage(uraniumTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
+          if (cell && cell.type === "helium3") {
+            ctx.drawImage(helium3Tile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
           }
           if (cell && cell.type === "mountain") {
             ctx.drawImage(mountainTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
@@ -119,8 +118,8 @@ const drawMap = () => {
           if (cell.aoi) {
             ctx.drawImage(aoiTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
           }
-          if (cell && cell.type === "uranium") {
-            ctx.drawImage(uraniumTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
+          if (cell && cell.type === "helium3") {
+            ctx.drawImage(helium3Tile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
           }
           if (cell && cell.type === "mountain") {
             ctx.drawImage(mountainTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
@@ -140,6 +139,46 @@ const drawMap = () => {
     })
   })
 };
+
+const drawUI = () => {
+  const { cooldown: ccCooldown, cooldownRemaining: ccCooldownRemaining } = buildings.commandCenter;
+  const { cooldown: turretCooldown, cooldownRemaining: turretCooldownRemaining } = buildings.turret;
+  const { cooldown: mineCooldown, cooldownRemaining: mineCooldownRemaining } = buildings.mine;
+  // cooldown
+  ctx.fillStyle = "#333333";
+  ctx.fillRect(100, 490, ((ccCooldown - ccCooldownRemaining) / ccCooldown) * 240 , 30);
+  ctx.fillRect(100, 520, ((turretCooldown - turretCooldownRemaining) / turretCooldown) * 240 , 30);
+  ctx.fillRect(100, 550, ((mineCooldown - mineCooldownRemaining) / mineCooldown) * 240 , 30);
+
+  ctx.strokeStyle = "gray";
+  ctx.fillStyle = "gray";
+  // command center
+  ctx.strokeRect(100, 490, 240, 30);
+  ctx.fillRect(105, 495, 20, 20);
+  // turret
+  ctx.strokeRect(100, 520, 240, 30);
+  ctx.fillRect(105, 525, 20, 20);
+  // mine
+  ctx.strokeRect(100, 550, 240, 30);
+  ctx.fillRect(105, 555, 20, 20);
+  // texts
+  ctx.fillStyle = "black";
+  ctx.font = "14px Arial";
+  ctx.fillText("1", 110, 510);
+  ctx.fillText("2", 110, 540);
+  ctx.fillText("3", 110, 570);
+  ctx.fillStyle = ccCooldownRemaining > 0 ? "gray" : "white";
+  ctx.fillText(`Command Center (Cost: ${buildings.commandCenter.cost})`, 130, 510);
+  ctx.fillStyle = turretCooldownRemaining > 0 ? "gray" : "white";
+  ctx.fillText(`Turret (Cost: ${buildings.turret.cost})`, 130, 540);
+  ctx.fillStyle = mineCooldownRemaining > 0 ? "gray" : "white";
+  ctx.fillText(`Mine (Cost: ${buildings.mine.cost})`, 130, 570);
+
+  // helium reserve
+  ctx.fillStyle = "white";
+  ctx.font = "20px Arial";
+  ctx.fillText(`HELIUM-3: ${helium3}`, 600, 540);
+}
 
 const generateAoI = (step = 0, currentAoIScore = 4) => {
   map.forEach((col, i) => {
@@ -212,10 +251,10 @@ const generateMap = (width, height) => {
     });
   });
 
-  // allocate uranium sources
-  for (let i = 0; i < URANIUM_IN_MAP; i++) {
+  // allocate helium3 sources
+  for (let i = 0; i < HELIUM3_IN_MAP; i++) {
     map[Math.floor(Math.random() * width)][Math.floor(Math.random() * height)] = {
-      type: "uranium"
+      type: "helium3"
     }
   }
   // allocate raised tiles // disable for now
@@ -239,7 +278,7 @@ const gatherResources = () => {
   map.forEach((col, i) => {
     col.forEach((cell, j) => {
       if (cell?.building?.mine) {
-        uranium += URANIUM_INC;
+        helium3 += HELIUM3_INC;
       }
     });
   });
@@ -253,7 +292,9 @@ const gameLoop = () => {
   if (loop % 60 === 0) {
     gameLogic();
   }
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawMap();
+  drawUI();
   loop++;
   window.requestAnimationFrame(gameLoop);
 };
@@ -269,9 +310,9 @@ const startCooldown = buildingName => {
 }
 
 const build = buildingName => {
-  if (uranium >= buildings[buildingName].cost && buildings[buildingName].cooldownRemaining === 0) {
+  if (helium3 >= buildings[buildingName].cost && buildings[buildingName].cooldownRemaining === 0) {
     map[selectedTile[0]][selectedTile[1]].building = { [buildingName]: buildings[buildingName], createdAt: loop };
-    uranium -= buildings[buildingName].cost;
+    helium3 -= buildings[buildingName].cost;
     generateAoI();
     startCooldown(buildingName);
   }
@@ -304,7 +345,7 @@ const initInteraction = () => {
         }
       break;
       case 51: // 3
-        if (map[selectedTile[0]][selectedTile[1]].aoi && map[selectedTile[0]][selectedTile[1]].type === "uranium") {
+        if (map[selectedTile[0]][selectedTile[1]].aoi && map[selectedTile[0]][selectedTile[1]].type === "helium3") {
           build("mine");
         }
       break;
