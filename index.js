@@ -41,6 +41,7 @@ aoiTile.src = 'aoi-human.png';
 let hOffset = 0;
 let selectionBrightness = SEL_BRIGHTNESS_MIN;
 let selectionBrightnessInc = 0.5;
+const stars = [];
 
 const PLAYERS = {
   HUMAN: 1,
@@ -70,6 +71,15 @@ const buildings = {
     cooldown: 10,
     cooldownRemaining: 0,
   }
+};
+
+const drawStars = () => {
+  let color = "white";
+  stars.forEach(s => {
+    ctx.fillStyle = color;
+    color = color === "white" ? "gray" : "white";
+    ctx.fillRect(s[0], s[1], 2, 2);
+  });
 };
 
 const drawMap = () => {
@@ -240,6 +250,14 @@ const generateAoI = (step = 0, currentAoIScore = 4) => {
   }
 };
 
+const generateStarBackground = numberOfStars => {
+    while (numberOfStars--) {
+      const x = Math.floor(Math.random() * 800);
+      const y = Math.floor(Math.random() * 600);
+      stars.push([x, y]);
+    }
+};
+
 const generateMap = (width, height) => {
   // initialize map
   for (let i = 0; i < width; i++) {
@@ -293,6 +311,7 @@ const gameLoop = () => {
     gameLogic();
   }
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawStars();
   drawMap();
   drawUI();
   loop++;
@@ -355,6 +374,7 @@ const initInteraction = () => {
 
 const initGame = () => {
   generateMap(MAP_WIDTH, MAP_HEIGHT);
+  generateStarBackground(200);
   initInteraction();
   window.requestAnimationFrame(gameLoop);
 };
