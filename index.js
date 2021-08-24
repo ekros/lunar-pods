@@ -89,7 +89,11 @@ const drawMap = () => {
           hOffset = HORIZ_HEX_OFFSET;
         }
         if (i === selectedTile[0] && j === selectedTile[1]) {
-          ctx.filter = `brightness(${selectionBrightness}%)`;
+          if (cell.type !== "mountain") {
+            ctx.filter = `brightness(${selectionBrightness}%)`;
+          } else {
+            ctx.filter = `sepia(1) hue-rotate(-40deg) saturate(200%)`;
+          }
         } else {
           ctx.filter = "none";
         }
