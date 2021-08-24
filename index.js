@@ -1,15 +1,17 @@
 const HEX_SIZE = 48;
 const VERT_HEX_OFFSET = 24;
 const HORIZ_HEX_OFFSET = -10;
+const HORIZ_MAP_OFFSET = 10;
+const VERT_MAP_OFFSET = 50;
 const URANIUM_IN_MAP = 5;
 // const MAX_URANIUM_IN_MAP = 5; TODO: add max?
 const RAISED_TILES_IN_MAP = 5;
 const RAISED_OFFSET = -10;
-const BLANK_TILES = 20;
+const MOUNTAIN_TILES = 20;
 const SEL_BRIGHTNESS_MIN = 80;
 const SEL_BRIGHTNESS_MAX = 120;
-const MAP_WIDTH = 15;
-const MAP_HEIGHT = 10;
+const MAP_WIDTH = 20;
+const MAP_HEIGHT = 8;
 const URANIUM_INC = 10;
 
 const map = [];
@@ -24,6 +26,8 @@ const tile = new Image(HEX_SIZE, HEX_SIZE);
 tile.src = 'tile.png';
 const tileDark = new Image(HEX_SIZE, HEX_SIZE);
 tileDark.src = 'tile-dark.png';
+const mountainTile = new Image(HEX_SIZE, HEX_SIZE);
+mountainTile.src = 'mountain.png';
 const uraniumTile = new Image(HEX_SIZE, HEX_SIZE);
 uraniumTile.src = 'uranium.png';
 const ccTile = new Image(HEX_SIZE, HEX_SIZE);
@@ -91,35 +95,41 @@ const drawMap = () => {
         }
         if (i % 2 === 0) {
           if (cell.raised) {
-            ctx.drawImage(tileDark, HEX_SIZE * i + (hOffset * i), HEX_SIZE * j + VERT_HEX_OFFSET);
+            ctx.drawImage(tileDark, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
           }
-          ctx.drawImage(tile, HEX_SIZE * i + (hOffset * i), HEX_SIZE * j + VERT_HEX_OFFSET + (cell.raised ? RAISED_OFFSET : 0));
+          ctx.drawImage(tile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
           if (cell.aoi) {
-            ctx.drawImage(aoiTile, HEX_SIZE * i + (hOffset * i), HEX_SIZE * j + VERT_HEX_OFFSET + (cell.raised ? RAISED_OFFSET : 0));
+            ctx.drawImage(aoiTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
           }
           if (cell && cell.type === "uranium") {
-            ctx.drawImage(uraniumTile, HEX_SIZE * i + (hOffset * i), HEX_SIZE * j + VERT_HEX_OFFSET + (cell.raised ? RAISED_OFFSET : 0));
+            ctx.drawImage(uraniumTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
+          }
+          if (cell && cell.type === "mountain") {
+            ctx.drawImage(mountainTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
           }
         } else {
           if (cell.raised) {
-            ctx.drawImage(tileDark, HEX_SIZE * i + (hOffset * i), HEX_SIZE * j);
+            ctx.drawImage(tileDark, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
           }
-          ctx.drawImage(tile, HEX_SIZE * i + (hOffset * i), HEX_SIZE * j + (cell.raised ? RAISED_OFFSET : 0));
+          ctx.drawImage(tile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
           if (cell.aoi) {
-            ctx.drawImage(aoiTile, HEX_SIZE * i + (hOffset * i), HEX_SIZE * j + (cell.raised ? RAISED_OFFSET : 0));
+            ctx.drawImage(aoiTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
           }
           if (cell && cell.type === "uranium") {
-            ctx.drawImage(uraniumTile, HEX_SIZE * i + (hOffset * i), HEX_SIZE * j + (cell.raised ? RAISED_OFFSET : 0));
+            ctx.drawImage(uraniumTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
+          }
+          if (cell && cell.type === "mountain") {
+            ctx.drawImage(mountainTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
           }
         }
         // buildings
         if (cell.building) { // TODO: take offsets into account
           if (cell.building.commandCenter) {
-            ctx.drawImage(ccTile, HEX_SIZE * i + (hOffset * i), HEX_SIZE * j + VERT_HEX_OFFSET);
+            ctx.drawImage(ccTile, HEX_SIZE * i + (hOffset * i), HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
           } else if (cell.building.turret) {
-            ctx.drawImage(turretTile, HEX_SIZE * i + (hOffset * i), HEX_SIZE * j + VERT_HEX_OFFSET);
+            ctx.drawImage(turretTile, HEX_SIZE * i + (hOffset * i), HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
           } else if (cell.building.mine) {
-            ctx.drawImage(mineTile, HEX_SIZE * i + (hOffset * i), HEX_SIZE * j + VERT_HEX_OFFSET);
+            ctx.drawImage(mineTile, HEX_SIZE * i + (hOffset * i), HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
           }
         }
       }
@@ -212,9 +222,11 @@ const generateMap = (width, height) => {
     }
   }
 
-  // allocate blank tiles
-  for (let i = 0; i < BLANK_TILES; i++) {
-    map[Math.floor(Math.random() * width)][Math.floor(Math.random() * height)] = undefined;
+  // allocate mountain tiles
+  for (let i = 0; i < MOUNTAIN_TILES; i++) {
+    map[Math.floor(Math.random() * width)][Math.floor(Math.random() * height)] = {
+      type: "mountain"
+    };
   }
   drawMap();
 };
@@ -256,6 +268,7 @@ const build = buildingName => {
   if (uranium >= buildings[buildingName].cost && buildings[buildingName].cooldownRemaining === 0) {
     map[selectedTile[0]][selectedTile[1]].building = { [buildingName]: buildings[buildingName], createdAt: loop };
     uranium -= buildings[buildingName].cost;
+    generateAoI();
     startCooldown(buildingName);
   }
 }
@@ -277,19 +290,18 @@ const initInteraction = () => {
         selectedTile[1] = selectedTile[1] < MAP_HEIGHT - 1 ? selectedTile[1] + 1 : MAP_HEIGHT - 1;
       break;
       case 49: // 1
-        build("commandCenter");
-        generateAoI();
+        if (map[selectedTile[0]][selectedTile[1]].type !== "mountain") {
+          build("commandCenter");
+        }
       break;
       case 50: // 2
-        if (map[selectedTile[0]][selectedTile[1]].aoi) {
+        if (map[selectedTile[0]][selectedTile[1]].aoi && map[selectedTile[0]][selectedTile[1]].type !== "mountain") {
           build("turret");
-          generateAoI();
         }
       break;
       case 51: // 3
         if (map[selectedTile[0]][selectedTile[1]].aoi && map[selectedTile[0]][selectedTile[1]].type === "uranium") {
           build("mine");
-          generateAoI();
         }
       break;
     }
