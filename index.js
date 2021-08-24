@@ -141,9 +141,9 @@ const drawMap = () => {
 };
 
 const drawUI = () => {
-  const { cooldown: ccCooldown, cooldownRemaining: ccCooldownRemaining } = buildings.commandCenter;
-  const { cooldown: turretCooldown, cooldownRemaining: turretCooldownRemaining } = buildings.turret;
-  const { cooldown: mineCooldown, cooldownRemaining: mineCooldownRemaining } = buildings.mine;
+  const { cooldown: ccCooldown, cooldownRemaining: ccCooldownRemaining, cost: ccCost } = buildings.commandCenter;
+  const { cooldown: turretCooldown, cooldownRemaining: turretCooldownRemaining, cost: turretCost } = buildings.turret;
+  const { cooldown: mineCooldown, cooldownRemaining: mineCooldownRemaining, cost: mineCost } = buildings.mine;
   // cooldown
   ctx.fillStyle = "#333333";
   ctx.fillRect(100, 490, ((ccCooldown - ccCooldownRemaining) / ccCooldown) * 240 , 30);
@@ -167,11 +167,11 @@ const drawUI = () => {
   ctx.fillText("1", 110, 510);
   ctx.fillText("2", 110, 540);
   ctx.fillText("3", 110, 570);
-  ctx.fillStyle = ccCooldownRemaining > 0 ? "gray" : "white";
+  ctx.fillStyle = ccCooldownRemaining > 0 || helium3 < ccCost ? "gray" : "white";
   ctx.fillText(`Command Center (Cost: ${buildings.commandCenter.cost})`, 130, 510);
-  ctx.fillStyle = turretCooldownRemaining > 0 ? "gray" : "white";
+  ctx.fillStyle = turretCooldownRemaining > 0 || helium3 < turretCost ? "gray" : "white";
   ctx.fillText(`Turret (Cost: ${buildings.turret.cost})`, 130, 540);
-  ctx.fillStyle = mineCooldownRemaining > 0 ? "gray" : "white";
+  ctx.fillStyle = mineCooldownRemaining > 0 || helium3 < mineCost ? "gray" : "white";
   ctx.fillText(`Mine (Cost: ${buildings.mine.cost})`, 130, 570);
 
   // helium reserve
