@@ -17,7 +17,7 @@ const HELIUM3_INC = 10;
 const map = [];
 let loop = 0;
 let selectedTile = [0, 0];
-let helium3 = 500;
+let helium3 = 5000; // TODO: use final value
 const cooldownTimers = {};
 
 const canvas = document.getElementById("game");
@@ -42,10 +42,13 @@ let hOffset = 0;
 let selectionBrightness = SEL_BRIGHTNESS_MIN;
 let selectionBrightnessInc = 0.5;
 const stars = [];
+let buildButtonPressed;
+let pristineMap = true;
 
 const PLAYERS = {
   HUMAN: 1,
-  CPU: 2
+  CPU: 2,
+  SELECTION: 3
 };
 
 // buildings collection
@@ -70,7 +73,7 @@ const buildings = {
     cost: 100,
     cooldown: 10,
     cooldownRemaining: 0,
-  }
+  },
 };
 
 const drawStars = () => {
@@ -98,11 +101,15 @@ const drawMap = () => {
           hOffset = HORIZ_HEX_OFFSET;
         }
         if (i === selectedTile[0] && j === selectedTile[1]) {
-          if (cell.type !== "mountain") {
+          if (cell.invalidSelection) {
+            ctx.filter = `sepia(1) hue-rotate(-40deg) saturate(200%)`;
+          } else if (cell.type !== "mountain") {
             ctx.filter = `brightness(${selectionBrightness}%)`;
           } else {
             ctx.filter = `sepia(1) hue-rotate(-40deg) saturate(200%)`;
           }
+        } else if (cell.aoi === PLAYERS.SELECTION) {
+          ctx.filter = `sepia(1) hue-rotate(40deg) saturate(200%)`;
         } else {
           ctx.filter = "none";
         }
@@ -111,7 +118,7 @@ const drawMap = () => {
             ctx.drawImage(tileDark, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
           }
           ctx.drawImage(tile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
-          if (cell.aoi) {
+          if (cell.aoi || cell.invalidSelection) {
             ctx.drawImage(aoiTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
           }
           if (cell && cell.type === "helium3") {
@@ -125,7 +132,7 @@ const drawMap = () => {
             ctx.drawImage(tileDark, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
           }
           ctx.drawImage(tile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
-          if (cell.aoi) {
+          if (cell.aoi || cell.invalidSelection) {
             ctx.drawImage(aoiTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
           }
           if (cell && cell.type === "helium3") {
@@ -191,20 +198,54 @@ const drawUI = () => {
 }
 
 const generateAoI = (step = 0, currentAoIScore = 4) => {
+  // clear AoI
+  if (step === 0) {
+    map.forEach((col, i) => {
+      col.forEach((cell, j) => {
+        if (cell.aoi === PLAYERS.SELECTION) {
+          cell.aoi = undefined;
+          cell.aoiScore = undefined;
+        }
+        if (cell.building?.placeholder) {
+          cell.building = undefined;
+        }
+      })
+    });
+  }
+
+  console.log(pristineMap, map[selectedTile[0]][selectedTile[1]].aoi);
+  if (!map[selectedTile[0]][selectedTile[1]].aoi && buildButtonPressed && !pristineMap) {
+      map[selectedTile[0]][selectedTile[1]].invalidSelection = true;
+    return;
+  }
+
+
+  if (!map[selectedTile[0]][selectedTile[1]].building) {
+    if (buildButtonPressed === "1") {
+        map[selectedTile[0]][selectedTile[1]].building = { placeholder: { type: "placeholder", area: buildings.commandCenter.area } };
+    } else if (buildButtonPressed === "2") {
+      map[selectedTile[0]][selectedTile[1]].building = { placeholder: { type: "placeholder", area: buildings.turret.area } };
+    } else if (buildButtonPressed === "3") {
+      map[selectedTile[0]][selectedTile[1]].building = { placeholder: { type: "placeholder", area: buildings.mine.area } };
+    }
+  }
+
   map.forEach((col, i) => {
     col.forEach((cell, j) => {
-
     // neibourhood algorithm (step 0)
     if (step === 0) {
       if (cell?.building) {
+        cell.aoi = PLAYERS.HUMAN;
         if (cell.building.commandCenter) {
           cell.aoiScore = cell.building.commandCenter.area;
         } else if (cell.building.turret) {
           cell.aoiScore = cell.building.turret.area;
         } else if (cell.building.mine) {
           cell.aoiScore = cell.building.mine.area;
+        } else if (cell.building.placeholder) {
+          cell.aoiScore = cell.building.placeholder.area;
+          cell.aoi = PLAYERS.SELECTION;
         }
-        cell.aoi = PLAYERS.HUMAN;
       }
     } else if (step >= 1 && cell && cell.aoiScore === currentAoIScore) {
       if (map[i][j - 1] && !map[i][j - 1]?.aoiScore) {
@@ -343,32 +384,58 @@ const initInteraction = () => {
       // arrows
       case 37:
         selectedTile[0] = selectedTile[0] > 0 ? selectedTile[0] - 1 : 0;
+        buildButtonPressed = undefined;
       break;
       case 38:
         selectedTile[1] = selectedTile[1] > 0 ? selectedTile[1] - 1 : 0;
+        buildButtonPressed = undefined;
       break;
       case 39:
         selectedTile[0] = selectedTile[0] < MAP_WIDTH - 1 ? selectedTile[0] + 1 : MAP_WIDTH - 1;
+        buildButtonPressed = undefined;
       break;
       case 40:
         selectedTile[1] = selectedTile[1] < MAP_HEIGHT - 1 ? selectedTile[1] + 1 : MAP_HEIGHT - 1;
+        buildButtonPressed = undefined;
       break;
       case 49: // 1
-        if (map[selectedTile[0]][selectedTile[1]].type !== "mountain") {
-          build("commandCenter");
+        if ((map[selectedTile[0]][selectedTile[1]].aoi || !map[selectedTile[0]][selectedTile[1]].aoi && pristineMap) && map[selectedTile[0]][selectedTile[1]].type !== "mountain") {
+          if (buildButtonPressed === "1") {
+            buildButtonPressed = undefined;
+            pristineMap = false;
+            build("commandCenter");
+          } else {
+            buildButtonPressed = "1";
+          }
         }
       break;
       case 50: // 2
         if (map[selectedTile[0]][selectedTile[1]].aoi && map[selectedTile[0]][selectedTile[1]].type !== "mountain") {
-          build("turret");
+          if (buildButtonPressed === "2") {
+            buildButtonPressed = undefined;
+            pristineMap = false;
+            build("turret");
+          } else {
+            buildButtonPressed = "2";
+          }
         }
       break;
       case 51: // 3
         if (map[selectedTile[0]][selectedTile[1]].aoi && map[selectedTile[0]][selectedTile[1]].type === "helium3") {
-          build("mine");
+          if (buildButtonPressed === "3") {
+            buildButtonPressed = undefined;
+            pristineMap = false;
+            build("mine");
+          } else {
+            buildButtonPressed = "3";
+          }
         }
       break;
+      case 27: // ESC
+        buildButtonPressed = undefined;
+      break;
     }
+    generateAoI();
   });
 };
 
