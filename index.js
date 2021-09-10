@@ -245,7 +245,7 @@ const drawMap = () => {
           if (cell.aoi || cell.invalidSelection) {
             let lastFilter = ctx.filter;
             if (cell.aoi === PLAYERS.CPU) {
-              ctx.filter = `sepia(1) hue-rotate(80deg) saturate(140%)`;
+              ctx.filter = `sepia(1) hue-rotate(0deg) saturate(140%)`;
             }
             ctx.drawImage(aoiTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
             ctx.filter = lastFilter;
@@ -264,7 +264,7 @@ const drawMap = () => {
           if (cell.aoi || cell.invalidSelection) {
             let lastFilter = ctx.filter;
             if (cell.aoi === PLAYERS.CPU) {
-              ctx.filter = `sepia(1) hue-rotate(80deg) saturate(120%)`;
+              ctx.filter = `sepia(1) hue-rotate(0deg) saturate(120%)`;
             }
             ctx.drawImage(aoiTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
             ctx.filter = lastFilter;
