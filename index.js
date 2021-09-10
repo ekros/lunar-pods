@@ -3,6 +3,7 @@ const VERT_HEX_OFFSET = 24;
 const HORIZ_HEX_OFFSET = -10;
 const HORIZ_MAP_OFFSET = 10;
 const VERT_MAP_OFFSET = 40;
+const BUILDING_OFFSET = 20;
 const HELIUM3_IN_MAP = 5;
 // const MAX_HELIUM3_IN_MAP = 5; TODO: add max?
 const RAISED_TILES_IN_MAP = 5;
@@ -42,6 +43,12 @@ const mineTile = new Image(HEX_SIZE, HEX_SIZE);
 mineTile.src = 'mine.png';
 const turretTile = new Image(HEX_SIZE, HEX_SIZE);
 turretTile.src = 'turret.png';
+const ccTileCpu = new Image(HEX_SIZE, HEX_SIZE);
+ccTileCpu.src = 'command-center-cpu.png';
+const mineTileCpu = new Image(HEX_SIZE, HEX_SIZE);
+mineTileCpu.src = 'mine-cpu.png';
+const turretTileCpu = new Image(HEX_SIZE, HEX_SIZE);
+turretTileCpu.src = 'turret-cpu.png';
 const aoiTile = new Image(HEX_SIZE, HEX_SIZE);
 aoiTile.src = 'aoi-human.png';
 let hOffset = 0;
@@ -169,23 +176,35 @@ const drawMap = () => {
           }
         }
         // buildings
-        if (cell.building) { // TODO: take offsets into account
+        if (cell.building) {
           if (cell.building.commandCenter) {
-            ctx.drawImage(ccTile, HEX_SIZE * i + (hOffset * i), HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
+            if (i % 2 === 0) {
+              ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? ccTile : ccTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
+            } else {
+              ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? ccTile : ccTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
+            }
             if (debuggingMode) {
               ctx.fillStyle = "black";
               ctx.font = "12px Arial";
               ctx.fillText(cell.building.commandCenter.hp, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
             }
           } else if (cell.building.turret) {
-            ctx.drawImage(turretTile, HEX_SIZE * i + (hOffset * i), HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
+            if (i % 2 === 0) {
+              ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? turretTile : turretTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
+            } else {
+              ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? turretTile : turretTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
+            }
             if (debuggingMode) {
               ctx.fillStyle = "black";
               ctx.font = "12px Arial";
               ctx.fillText(cell.building.turret.hp, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
             }
           } else if (cell.building.mine) {
-            ctx.drawImage(mineTile, HEX_SIZE * i + (hOffset * i), HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
+            if (i % 2 === 0) {
+              ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? mineTile : mineTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
+            } else {
+              ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? mineTile : mineTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
+            }
             if (debuggingMode) {
               ctx.fillStyle = "black";
               ctx.font = "12px Arial";
@@ -326,7 +345,7 @@ const generateAoI = (step = 0, currentAoIScore = 4) => {
         map[i - 1][j].aoiScore = cell.aoiScore - 1;
         map[i - 1][j].aoi = cell.aoi;
       }
-      if (i < MAP_WIDTH && map[i + 1][j] && !map[i + 1][j]?.aoiScore && !map[i + 1][j]?.aoi) {
+      if (i < MAP_WIDTH && map[i + 1] && map[i + 1][j] && !map[i + 1][j]?.aoiScore && !map[i + 1][j]?.aoi) {
         map[i + 1][j].aoiScore = cell.aoiScore - 1;
         map[i + 1][j].aoi = cell.aoi;
       }
