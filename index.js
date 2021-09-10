@@ -27,6 +27,7 @@ let IAStepNumber = 0;
 let selectedTile = [0, 0];
 let helium3 = 5000; // TODO: use final value
 const cooldownTimers = {};
+let incrementalId = 0; // for generating building id
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
@@ -64,6 +65,7 @@ const stars = [];
 let buildButtonPressed;
 let pristineMap = true;
 let gameState = GAME_STATES.RUNNING;
+let particleSystems = []; // fire, smoke..
 let debuggingMode = true;
 
 const PLAYERS = {
@@ -81,6 +83,7 @@ const DIRECTION = {
 // buildings collection
 const buildings = {
   commandCenter: {
+    id: undefined,
     hp: 500,
     area: 4,
     cost: 300,
@@ -88,6 +91,7 @@ const buildings = {
     cooldownRemaining: 0,
   },
   turret: {
+    id: undefined,
     hp: 200,
     area: 2,
     cost: 200,
@@ -97,6 +101,7 @@ const buildings = {
     damage: 20,
   },
   mine: {
+    id: undefined,
     hp: 100,
     area: 1,
     cost: 100,
@@ -104,6 +109,96 @@ const buildings = {
     cooldownRemaining: 0,
   },
 };
+
+const startParticleSystem = (id, initX, initY, color = {r: 255, g: 255, b: 255}, direction = "up", options = {}) => {
+  const particles = [];
+  const initTtl = options.initTtl || 50;
+  const initSize = options.initSize || 6;
+  const maxParticles = options.maxParticles || 10;
+  const speed = options.speed || 1;
+  const once = options.once || false;
+  particles.push({
+    x: initX + Math.random() * 10,
+    y: initY,
+    ttl: initTtl,
+    opacity: 1,
+    size: initSize
+  });
+  particleSystems.push({
+    init: {
+      color,
+      direction,
+      id,
+      initX,
+      initY,
+      initTtl,
+      initSize,
+      maxParticles,
+      once,
+      speed
+    },
+    particles
+  });
+};
+
+const updateParticleSystems = () => {
+  if (particleSystems.length > 1) {
+  }
+  particleSystems.forEach(system => {
+    const { initX, initY, initTtl, initSize, maxParticles, color, direction, speed, once } = system.init;
+    // console.log("particles", system.particles.length);
+    system.particles.forEach((p, index) => {
+      if (!p.dead) {
+        let { x, y, size } = p;
+        ctx.clearRect(x, y, size, size);
+        let updatedParticle = { ...p };
+        ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${updatedParticle.opacity})`;
+        ctx.fillRect(x, y, size, size);
+        updatedParticle.ttl -= 1;
+        if (updatedParticle.ttl > 0) {
+          // console.log(updatedParticle);
+          if (direction === "up") {
+            updatedParticle.y -= speed;
+            updatedParticle.x += Math.random()*2 - 1;
+          } else if (direction === "down") {
+            updatedParticle.y -= -speed;
+            updatedParticle.x += Math.random()*2 - 1;
+          } else if (direction === "left") {
+            updatedParticle.y -= Math.random()*2 - 1;
+            updatedParticle.x += -speed;
+          } else if (direction === "right") {
+            updatedParticle.y -= Math.random()*2 - 1;
+            updatedParticle.x += speed;
+          }
+          updatedParticle.opacity -= 1/initTtl;
+          updatedParticle.size -= initSize/initTtl;
+        } else if (once) {
+          updatedParticle.opacity = 0;
+          updatedParticle.dead = true;
+        } else {
+          updatedParticle.x = initX;
+          updatedParticle.y = initY;
+          updatedParticle.ttl = initTtl + Math.floor(Math.random()*20);
+          updatedParticle.opacity = 1;
+          updatedParticle.size = initSize;
+        }
+        system.particles[index] = updatedParticle;
+      }
+    });
+    if (system.particles.length < maxParticles) {
+      system.particles.push({
+        x: initX + Math.random() * 10,
+        y: initY,
+        opacity: 1,
+        size: 5
+      });
+    }
+  });
+};
+
+const purgeEndedParticleSystems = () => {
+  particleSystems = particleSystems.filter(system => !system.ended);
+}
 
 const drawStars = () => {
   let color = "white";
@@ -373,7 +468,7 @@ const generateAoI = (step = 0, currentAoIScore = 4) => {
           map[i - 1][j - 1].aoiScore = cell.aoiScore - 1;
           map[i - 1][j - 1].aoi = cell.aoi;
         }
-        if (i < MAP_WIDTH && map[i + 1][j - 1] && !map[i + 1][j - 1]?.aoiScore && !map[i + 1][j - 1]?.aoi) {
+        if (i < MAP_WIDTH && map[i + 1] && map[i + 1][j - 1] && !map[i + 1][j - 1]?.aoiScore && !map[i + 1][j - 1]?.aoi) {
           map[i + 1][j - 1].aoiScore = cell.aoiScore - 1;
           map[i + 1][j - 1].aoi = cell.aoi;
         }
@@ -558,8 +653,13 @@ const FSM = {
         // console.log("CREATE_CC");
         const mine = findAvailableCellOfType("helium3");
         map[mine.x + 1][mine.y].building = { commandCenter: { ...buildings.commandCenter }, createdAt: loop };
+        map[mine.x + 1][mine.y].building.id = getNewId();
         map[mine.x + 1][mine.y].aoi = PLAYERS.CPU;
         map[mine.x + 1][mine.y].landingProgress = 0;
+        setTimeout(() => {
+          const cellPos = getCellCoordinates(mine.x + 1, mine.y);
+          startParticleSystem(map[mine.x + 1][mine.y].building.id, cellPos[0] + 5, cellPos[1] + 10, { r: 220, g: 200, b: 0}, "down", { initTtl: 20, once: true, speed: 0.5, maxParticles: 30 });
+        }, 900);
         // console.log("mine", mine);
         this.state = "CREATE_CC";
       }
@@ -568,9 +668,16 @@ const FSM = {
       createMine() {
         const mine = findAvailableCellOfType("helium3");
         map[mine.x][mine.y].building = { mine: { ...buildings.mine }, createdAt: loop };
+        map[mine.x + 1][mine.y].building.id = getNewId();
         map[mine.x][mine.y].aoi = PLAYERS.CPU;
         map[mine.x][mine.y].landingProgress = 0;
         // console.log("CREATE_MINE");
+        setTimeout(() => {
+          const cellPos = getCellCoordinates(mine.x + 1, mine.y);
+          startParticleSystem(map[mine.x][mine.y].building.id, cellPos[0] + 5, cellPos[1] + 10, { r: 220, g: 200, b: 0}, "down", { initTtl: 20, once: true, speed: 0.5, maxParticles: 30 });
+        }, 900);
+        const cellPos = getCellCoordinates(mine.x, mine.y);
+        startParticleSystem(map[mine.x][mine.y].building.id, cellPos[0] + 17, cellPos[1], { r: 0, g: 255, b: 0}, "up", { speed: 0.3 });
         this.state = "CREATE_MINE";
       }
     },
@@ -583,8 +690,15 @@ const FSM = {
         // if mine is near
         if (ownAvailableSources.length > 0) {
           map[ownAvailableSources[0].x][ownAvailableSources[0].y].building = { mine: { ...buildings.mine }, createdAt: loop };
+          map[ownAvailableSources[0].x][ownAvailableSources[0].y].building.id = getNewId();
           map[ownAvailableSources[0].x][ownAvailableSources[0].y].aoi = PLAYERS.CPU;
-          map[ownAvailableSources.x][ownAvailableSources.y].landingProgress = 0;
+          map[ownAvailableSources[0].x][ownAvailableSources[0].y].landingProgress = 0;
+          setTimeout(() => {
+            const cellPos = getCellCoordinates(ownAvailableSources[0].x, ownAvailableSources[0].y);
+            startParticleSystem(map[ownAvailableSources[0].x][ownAvailableSources[0].y].building.id, cellPos[0] + 5, cellPos[1] + 10, { r: 220, g: 200, b: 0}, "down", { initTtl: 20, once: true, speed: 0.5, maxParticles: 30 });
+          }, 900);
+          const cellPos = getCellCoordinates(ownAvailableSources[0].x, ownAvailableSources[0].y);
+          startParticleSystem(map[ownAvailableSources[0].x][ownAvailableSources[0].y].building.id, cellPos[0] + 17, cellPos[1], { r: 0, g: 255, b: 0}, "up", { speed: 0.3 });
           this.state = "CREATE_MINE";
         } else { // if not
           this.state = "LOCATE_ENEMY_CC";
@@ -606,6 +720,7 @@ const FSM = {
             const cell = leftCells[Math.floor(Math.random() * leftCells.length)];
             if (cell && cell.cell && !cell.cell.building && cell.cell.type !== "mountain") {
               map[cell.x][cell.y].building = { turret: { ...buildings.turret }, createdAt: loop };
+              map[cell.x][cell.y].building.id = getNewId();
               map[cell.x][cell.y].aoi = PLAYERS.CPU;
               map[cell.x][cell.y].landingProgress = 0;
               processingRandomPos = false;
@@ -618,6 +733,7 @@ const FSM = {
             const cell = rightCells[Math.floor(Math.random() * rightCells.length)];
             if (cell && cell.cell && !cell.cell.building && cell.cell.type !== "mountain") {
               map[cell.x][cell.y].building = { turret: { ...buildings.turret }, createdAt: loop };
+              map[cell.x][cell.y].building.id = getNewId();
               map[cell.x][cell.y].aoi = PLAYERS.CPU;
               map[cell.x][cell.y].landingProgress = 0;
               processingRandomPos = false;
@@ -630,12 +746,17 @@ const FSM = {
             // console.log("cell", cell);
             if (cell && cell.cell && !cell.cell.building && cell.cell.type !== "mountain") {
               map[cell.x][cell.y].building = { turret: { ...buildings.turret }, createdAt: loop };
+              map[cell.x][cell.y].building.id = getNewId();
               map[cell.x][cell.y].aoi = PLAYERS.CPU;
               map[cell.x][cell.y].landingProgress = 0;
               processingRandomPos = false;
             }
           }
         }
+        setTimeout(() => {
+          const cellPos = getCellCoordinates(cell.x, cell.y);
+          startParticleSystem(map[cell.x][cell.y].building.id, cellPos[0] + 5, cellPos[1] + 10, { r: 220, g: 200, b: 0}, "down", { initTtl: 20, once: true, speed: 0.5, maxParticles: 30 });
+        }, 900);
         this.state = "CREATE_MINE";
       }
     }
@@ -708,17 +829,27 @@ const turretAttack = () => {
               destroy(t2);
             }
           }
+          if (map[t.x][t.y].building) {
+            const cellPos = getCellCoordinates(t.x, t.y);
+            startParticleSystem(map[t.x][t.y].building.id, cellPos[0] + 17, cellPos[1], { r: 255, g: 180, b: 0}, t2.x - t.x > 0 ? "right" : "left", { initSize: 4, initTtl: 80, maxParticles: 1, speed: 3 });
+          }
           attacked = true;
         }
       }
     });
+    if (!attacked) { // turret not attacking. Remove animation
+      const s = particleSystems.find(system => system.init.id === t.cell.building.id);
+      if (s) {
+        s.ended = true; // mark for elimination
+      }
+    }
   });
 };
 
 const checkWinLoseConditions = () => {
   if (!pristineMap) {
     const ccs = findAllCommandCenters();
-    console.log(ccs);
+    // console.log(ccs);
     if (!ccs.find(cc => cc.cell.aoi === PLAYERS.CPU)) { // you destroyed enemy CCs, you win
       gameState = GAME_STATES.WIN;
     } else if (!ccs.find(cc => cc.cell.aoi === PLAYERS.HUMAN)) { // all your CCs were destroyed, you lose
@@ -737,8 +868,10 @@ const gameLogic = () => {
 const updateLandingProgress = () => {
   map.forEach((col, i) => {
     col.forEach((cell, j) => {
-      if (cell.landingProgress < 100) {
+      if (cell.landingProgress < 80) {
         cell.landingProgress += 5 - cell.landingProgress / 21;
+      } else if (cell.landingProgress < 100) {
+        cell.landingProgress += 0.4;
       }
     });
   });
@@ -753,6 +886,10 @@ const gameLoop = () => {
   drawMap();
   drawUI();
   updateLandingProgress();
+  updateParticleSystems();
+  if (loop % 200 === 0) {
+    purgeEndedParticleSystems();
+  }
   loop++;
   window.requestAnimationFrame(gameLoop);
 };
@@ -767,19 +904,50 @@ const startCooldown = buildingName => {
   }, 1000);
 }
 
+const getCellCoordinates = (tileX, tileY) => tileX % 2 === 0 ?
+      [HEX_SIZE * tileX + BUILDING_OFFSET + HORIZ_HEX_OFFSET * tileX, HEX_SIZE * tileY + VERT_HEX_OFFSET + VERT_MAP_OFFSET] :
+      [HEX_SIZE * tileX + BUILDING_OFFSET + HORIZ_HEX_OFFSET * tileX, HEX_SIZE * tileY + VERT_MAP_OFFSET];
+
+const getNewId = () => {
+  incrementalId += 1;
+  return incrementalId;
+}
+
 const build = buildingName => {
   if (helium3 >= buildings[buildingName].cost && buildings[buildingName].cooldownRemaining === 0) {
     map[selectedTile[0]][selectedTile[1]].building = { [buildingName]: { ...buildings[buildingName] }, createdAt: loop };
+    map[selectedTile[0]][selectedTile[1]].building.id = getNewId();
     map[selectedTile[0]][selectedTile[1]].aoi = PLAYERS.HUMAN;
     map[selectedTile[0]][selectedTile[1]].landingProgress = 0;
     helium3 -= buildings[buildingName].cost;
     generateAoI();
     startCooldown(buildingName);
+
+    // add building effect
+    const cellX = selectedTile[0];
+    const cellY = selectedTile[1];
+    const cell = map[selectedTile[0]][selectedTile[1]];
+    setTimeout(() => {
+      const cellPos = getCellCoordinates(cellX, cellY);
+      startParticleSystem(cell.building.id, cellPos[0] + 5, cellPos[1] + 10, { r: 220, g: 200, b: 0}, "down", { initTtl: 20, once: true, speed: 0.5, maxParticles: 30 });
+    }, 900);
+    setTimeout(() => {
+      if (buildingName === "mine") {
+        const cellPos = getCellCoordinates(cellX, cellY);
+        startParticleSystem(cell.building.id, cellPos[0] + 17, cellPos[1], { r: 0, g: 255, b: 0}, "up", { speed: 0.3 });
+      }
+    }, 2000);
   }
 }
 
 const destroy = cell => {
   // console.log("cell", cell);
+  const systems = particleSystems.filter(system => system.init.id === cell.cell.building.id);
+  if (systems) {
+    systems.forEach((s) => {
+      s.ended = true; // mark for elimination
+    })
+  }
   cell.cell.aoi = null;
   cell.cell.building = null;
   resetAoI();
@@ -842,10 +1010,13 @@ const initInteraction = () => {
         }
         break;
         case 27: // ESC
-        buildButtonPressed = undefined;
+          buildButtonPressed = undefined;
+        break;
+        case 46: // Supr
+          destroy({ cell: map[selectedTile[0]][selectedTile[1]] });
         break;
         case 68: // "d" for debuggin
-        debuggingMode = !debuggingMode;
+          debuggingMode = !debuggingMode;
         break;
       }
     } else if (ev.key === "Enter") {
