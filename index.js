@@ -783,7 +783,7 @@ const initInteraction = () => {
         buildButtonPressed = undefined;
         break;
         case 49: // 1
-        if ((map[selectedTile[0]][selectedTile[1]].aoi || !map[selectedTile[0]][selectedTile[1]].aoi && pristineMap) && map[selectedTile[0]][selectedTile[1]].type !== "mountain") {
+        if ((map[selectedTile[0]][selectedTile[1]].aoi !== PLAYERS.CPU || !map[selectedTile[0]][selectedTile[1]].aoi && pristineMap) && map[selectedTile[0]][selectedTile[1]].type !== "mountain") {
           if (buildButtonPressed === "1") {
             buildButtonPressed = undefined;
             pristineMap = false;
@@ -794,7 +794,7 @@ const initInteraction = () => {
         }
         break;
         case 50: // 2
-        if (map[selectedTile[0]][selectedTile[1]].aoi && map[selectedTile[0]][selectedTile[1]].type !== "mountain") {
+        if (map[selectedTile[0]][selectedTile[1]].aoi !== PLAYERS.CPU && map[selectedTile[0]][selectedTile[1]].type !== "mountain") {
           if (buildButtonPressed === "2") {
             buildButtonPressed = undefined;
             pristineMap = false;
@@ -805,7 +805,7 @@ const initInteraction = () => {
         }
         break;
         case 51: // 3
-        if (map[selectedTile[0]][selectedTile[1]].aoi && map[selectedTile[0]][selectedTile[1]].type === "helium3") {
+        if (map[selectedTile[0]][selectedTile[1]].aoi !== PLAYERS.CPU && map[selectedTile[0]][selectedTile[1]].type === "helium3") {
           if (buildButtonPressed === "3") {
             buildButtonPressed = undefined;
             pristineMap = false;
