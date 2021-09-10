@@ -14,6 +14,7 @@ const SEL_BRIGHTNESS_MAX = 120;
 const MAP_WIDTH = 20;
 const MAP_HEIGHT = 8;
 const HELIUM3_INC = 10;
+const LANDING_OFFSET = -100;
 const GAME_STATES = {
   RUNNING: 0,
   WIN: 1,
@@ -43,12 +44,17 @@ const mineTile = new Image(HEX_SIZE, HEX_SIZE);
 mineTile.src = 'mine.png';
 const turretTile = new Image(HEX_SIZE, HEX_SIZE);
 turretTile.src = 'turret.png';
+const podTile = new Image(HEX_SIZE, HEX_SIZE);
+podTile.src = 'pod.png';
 const ccTileCpu = new Image(HEX_SIZE, HEX_SIZE);
 ccTileCpu.src = 'command-center-cpu.png';
 const mineTileCpu = new Image(HEX_SIZE, HEX_SIZE);
 mineTileCpu.src = 'mine-cpu.png';
 const turretTileCpu = new Image(HEX_SIZE, HEX_SIZE);
 turretTileCpu.src = 'turret-cpu.png';
+const podTileCpu = new Image(HEX_SIZE, HEX_SIZE);
+podTileCpu.src = 'pod-cpu.png';
+
 const aoiTile = new Image(HEX_SIZE, HEX_SIZE);
 aoiTile.src = 'aoi-human.png';
 let hOffset = 0;
@@ -88,7 +94,7 @@ const buildings = {
     cooldown: 5,
     cooldownRemaining: 0,
     range: 6,
-    damage: 20
+    damage: 20,
   },
   mine: {
     hp: 100,
@@ -177,38 +183,42 @@ const drawMap = () => {
         }
         // buildings
         if (cell.building) {
-          if (cell.building.commandCenter) {
-            if (i % 2 === 0) {
-              ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? ccTile : ccTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
-            } else {
-              ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? ccTile : ccTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
-            }
-            if (debuggingMode) {
-              ctx.fillStyle = "black";
-              ctx.font = "12px Arial";
-              ctx.fillText(cell.building.commandCenter.hp, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
-            }
-          } else if (cell.building.turret) {
-            if (i % 2 === 0) {
-              ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? turretTile : turretTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
-            } else {
-              ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? turretTile : turretTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
-            }
-            if (debuggingMode) {
-              ctx.fillStyle = "black";
-              ctx.font = "12px Arial";
-              ctx.fillText(cell.building.turret.hp, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
-            }
-          } else if (cell.building.mine) {
-            if (i % 2 === 0) {
-              ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? mineTile : mineTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
-            } else {
-              ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? mineTile : mineTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
-            }
-            if (debuggingMode) {
-              ctx.fillStyle = "black";
-              ctx.font = "12px Arial";
-              ctx.fillText(cell.building.mine.hp, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
+          if (cell.landingProgress < 100) {
+            ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? podTile : podTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET + (LANDING_OFFSET + cell.landingProgress));
+          } else {
+            if (cell.building.commandCenter) {
+              if (i % 2 === 0) {
+                ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? ccTile : ccTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
+              } else {
+                ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? ccTile : ccTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
+              }
+              if (debuggingMode) {
+                ctx.fillStyle = "black";
+                ctx.font = "12px Arial";
+                ctx.fillText(cell.building.commandCenter.hp, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
+              }
+            } else if (cell.building.turret) {
+              if (i % 2 === 0) {
+                ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? turretTile : turretTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
+              } else {
+                ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? turretTile : turretTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
+              }
+              if (debuggingMode) {
+                ctx.fillStyle = "black";
+                ctx.font = "12px Arial";
+                ctx.fillText(cell.building.turret.hp, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
+              }
+            } else if (cell.building.mine) {
+              if (i % 2 === 0) {
+                ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? mineTile : mineTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
+              } else {
+                ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? mineTile : mineTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
+              }
+              if (debuggingMode) {
+                ctx.fillStyle = "black";
+                ctx.font = "12px Arial";
+                ctx.fillText(cell.building.mine.hp, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
+              }
             }
           }
         }
@@ -549,7 +559,7 @@ const FSM = {
         const mine = findAvailableCellOfType("helium3");
         map[mine.x + 1][mine.y].building = { commandCenter: { ...buildings.commandCenter }, createdAt: loop };
         map[mine.x + 1][mine.y].aoi = PLAYERS.CPU;
-        // map[mine.x + 1][mine.y].aoiScore = buildings.commandCenter.area;
+        map[mine.x + 1][mine.y].landingProgress = 0;
         // console.log("mine", mine);
         this.state = "CREATE_CC";
       }
@@ -559,7 +569,7 @@ const FSM = {
         const mine = findAvailableCellOfType("helium3");
         map[mine.x][mine.y].building = { mine: { ...buildings.mine }, createdAt: loop };
         map[mine.x][mine.y].aoi = PLAYERS.CPU;
-        // map[mine.x][mine.y].aoiScore = buildings.mine.area;
+        map[mine.x][mine.y].landingProgress = 0;
         // console.log("CREATE_MINE");
         this.state = "CREATE_MINE";
       }
@@ -574,6 +584,7 @@ const FSM = {
         if (ownAvailableSources.length > 0) {
           map[ownAvailableSources[0].x][ownAvailableSources[0].y].building = { mine: { ...buildings.mine }, createdAt: loop };
           map[ownAvailableSources[0].x][ownAvailableSources[0].y].aoi = PLAYERS.CPU;
+          map[ownAvailableSources.x][ownAvailableSources.y].landingProgress = 0;
           this.state = "CREATE_MINE";
         } else { // if not
           this.state = "LOCATE_ENEMY_CC";
@@ -596,6 +607,7 @@ const FSM = {
             if (cell && cell.cell && !cell.cell.building && cell.cell.type !== "mountain") {
               map[cell.x][cell.y].building = { turret: { ...buildings.turret }, createdAt: loop };
               map[cell.x][cell.y].aoi = PLAYERS.CPU;
+              map[cell.x][cell.y].landingProgress = 0;
               processingRandomPos = false;
             }
           }
@@ -607,6 +619,7 @@ const FSM = {
             if (cell && cell.cell && !cell.cell.building && cell.cell.type !== "mountain") {
               map[cell.x][cell.y].building = { turret: { ...buildings.turret }, createdAt: loop };
               map[cell.x][cell.y].aoi = PLAYERS.CPU;
+              map[cell.x][cell.y].landingProgress = 0;
               processingRandomPos = false;
             }
           }
@@ -618,6 +631,7 @@ const FSM = {
             if (cell && cell.cell && !cell.cell.building && cell.cell.type !== "mountain") {
               map[cell.x][cell.y].building = { turret: { ...buildings.turret }, createdAt: loop };
               map[cell.x][cell.y].aoi = PLAYERS.CPU;
+              map[cell.x][cell.y].landingProgress = 0;
               processingRandomPos = false;
             }
           }
@@ -720,6 +734,16 @@ const gameLogic = () => {
   checkWinLoseConditions();
 };
 
+const updateLandingProgress = () => {
+  map.forEach((col, i) => {
+    col.forEach((cell, j) => {
+      if (cell.landingProgress < 100) {
+        cell.landingProgress += 5 - cell.landingProgress / 21;
+      }
+    });
+  });
+}
+
 const gameLoop = () => {
   if (loop % 60 === 0 && gameState === GAME_STATES.RUNNING) {
     gameLogic();
@@ -728,6 +752,7 @@ const gameLoop = () => {
   drawStars();
   drawMap();
   drawUI();
+  updateLandingProgress();
   loop++;
   window.requestAnimationFrame(gameLoop);
 };
@@ -746,6 +771,7 @@ const build = buildingName => {
   if (helium3 >= buildings[buildingName].cost && buildings[buildingName].cooldownRemaining === 0) {
     map[selectedTile[0]][selectedTile[1]].building = { [buildingName]: { ...buildings[buildingName] }, createdAt: loop };
     map[selectedTile[0]][selectedTile[1]].aoi = PLAYERS.HUMAN;
+    map[selectedTile[0]][selectedTile[1]].landingProgress = 0;
     helium3 -= buildings[buildingName].cost;
     generateAoI();
     startCooldown(buildingName);
