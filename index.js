@@ -668,7 +668,7 @@ const FSM = {
       createMine() {
         const mine = findAvailableCellOfType("helium3");
         map[mine.x][mine.y].building = { mine: { ...buildings.mine }, createdAt: loop };
-        map[mine.x + 1][mine.y].building.id = getNewId();
+        map[mine.x][mine.y].building.id = getNewId();
         map[mine.x][mine.y].aoi = PLAYERS.CPU;
         map[mine.x][mine.y].landingProgress = 0;
         // console.log("CREATE_MINE");
@@ -754,8 +754,10 @@ const FSM = {
           }
         }
         setTimeout(() => {
-          const cellPos = getCellCoordinates(cell.x, cell.y);
-          startParticleSystem(map[cell.x][cell.y].building.id, cellPos[0] + 5, cellPos[1] + 10, { r: 220, g: 200, b: 0}, "down", { initTtl: 20, once: true, speed: 0.5, maxParticles: 30 });
+          if (cell) {
+            const cellPos = getCellCoordinates(cell.x, cell.y);
+            startParticleSystem(map[cell.x][cell.y].building.id, cellPos[0] + 5, cellPos[1] + 10, { r: 220, g: 200, b: 0}, "down", { initTtl: 20, once: true, speed: 0.5, maxParticles: 30 });
+          }
         }, 900);
         this.state = "CREATE_MINE";
       }
@@ -831,7 +833,7 @@ const turretAttack = () => {
           }
           if (map[t.x][t.y].building) {
             const cellPos = getCellCoordinates(t.x, t.y);
-            startParticleSystem(map[t.x][t.y].building.id, cellPos[0] + 17, cellPos[1], { r: 255, g: 180, b: 0}, t2.x - t.x > 0 ? "right" : "left", { initSize: 4, initTtl: 80, maxParticles: 1, speed: 3 });
+            startParticleSystem(map[t.x][t.y].building.id, cellPos[0] + 17, cellPos[1], { r: 255, g: 180, b: 0}, t2.x - t.x > 0 ? "right" : "left", { initSize: 4, initTtl: 50, maxParticles: 3, speed: 4 });
           }
           attacked = true;
         }
