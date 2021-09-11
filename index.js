@@ -68,7 +68,7 @@ let buildButtonPressed;
 let pristineMap = true;
 let gameState = GAME_STATES.RUNNING;
 let particleSystems = []; // fire, smoke..
-let debuggingMode = true;
+let debuggingMode = false;
 
 const PLAYERS = {
   HUMAN: 1,
@@ -86,29 +86,32 @@ const DIRECTION = {
 const buildings = {
   commandCenter: {
     id: undefined,
-    hp: 500,
     area: 4,
-    cost: 300,
     cooldown: 30,
     cooldownRemaining: 0,
+    cost: 300,
+    hp: 500,
+    totalHP: 500
   },
   turret: {
     id: undefined,
-    hp: 200,
     area: 2,
-    cost: 200,
     cooldown: 5,
     cooldownRemaining: 0,
-    range: 6,
+    cost: 200,
     damage: 20,
+    hp: 200,
+    range: 6,
+    totalHP: 200
   },
   mine: {
     id: undefined,
-    hp: 100,
     area: 1,
-    cost: 100,
     cooldown: 10,
     cooldownRemaining: 0,
+    cost: 100,
+    hp: 100,
+    totalHP: 100
   },
 };
 
@@ -211,6 +214,13 @@ const drawStars = () => {
   });
 };
 
+const drawHP = (cellX, cellY, hOffset, hpPercentage, isEvenColumn) => {
+  ctx.fillStyle = "black";
+  ctx.fillRect(HEX_SIZE * cellX + (hOffset * cellX) + BUILDING_OFFSET, HEX_SIZE * cellY + (isEvenColumn ? VERT_HEX_OFFSET : 0) + VERT_MAP_OFFSET, 32, 4);
+  ctx.fillStyle = "green";
+  ctx.fillRect(HEX_SIZE * cellX + (hOffset * cellX) + BUILDING_OFFSET, HEX_SIZE * cellY + (isEvenColumn ? VERT_HEX_OFFSET : 0) + VERT_MAP_OFFSET, hpPercentage * 32, 4);
+};
+
 const drawMap = () => {
   // highlight effect
   selectionBrightness += selectionBrightnessInc;
@@ -286,8 +296,14 @@ const drawMap = () => {
             if (cell.building.commandCenter) {
               if (i % 2 === 0) {
                 ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? ccTile : ccTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
+                if (cell.building.commandCenter.hp < cell.building.commandCenter.totalHP) {
+                  drawHP(i, j, hOffset, cell.building.commandCenter.hp/cell.building.commandCenter.totalHP, true);
+                }
               } else {
                 ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? ccTile : ccTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
+                if (cell.building.commandCenter.hp < cell.building.commandCenter.totalHP) {
+                  drawHP(i, j, hOffset, cell.building.commandCenter.hp/cell.building.commandCenter.totalHP, false);
+                }
               }
               if (debuggingMode) {
                 ctx.fillStyle = "black";
@@ -297,8 +313,14 @@ const drawMap = () => {
             } else if (cell.building.turret) {
               if (i % 2 === 0) {
                 ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? turretTile : turretTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
+                if (cell.building.turret.hp < cell.building.turret.totalHP) {
+                  drawHP(i, j, hOffset, cell.building.turret.hp/cell.building.turret.totalHP, true);
+                }
               } else {
                 ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? turretTile : turretTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
+                if (cell.building.turret.hp < cell.building.turret.totalHP) {
+                  drawHP(i, j, hOffset, cell.building.turret.hp/cell.building.turret.totalHP, false);
+                }
               }
               if (debuggingMode) {
                 ctx.fillStyle = "black";
@@ -308,8 +330,14 @@ const drawMap = () => {
             } else if (cell.building.mine) {
               if (i % 2 === 0) {
                 ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? mineTile : mineTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
+                if (cell.building.mine.hp < cell.building.mine.totalHP) {
+                  drawHP(i, j, hOffset, cell.building.mine.hp/cell.building.mine.totalHP, true);
+                }
               } else {
                 ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? mineTile : mineTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
+                if (cell.building.mine.hp < cell.building.mine.totalHP) {
+                  drawHP(i, j, hOffset, cell.building.mine.hp/cell.building.mine.totalHP, false);
+                }
               }
               if (debuggingMode) {
                 ctx.fillStyle = "black";
