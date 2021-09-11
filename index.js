@@ -41,16 +41,16 @@ const helium3Tile = new Image(HEX_SIZE, HEX_SIZE);
 helium3Tile.src = 'assets/graphics/helium3.png';
 const ccTile = new Image(HEX_SIZE, HEX_SIZE);
 ccTile.src = 'assets/graphics/command-center.png';
-const mineTile = new Image(HEX_SIZE, HEX_SIZE);
-mineTile.src = 'assets/graphics/mine.png';
+const refineryTile = new Image(HEX_SIZE, HEX_SIZE);
+refineryTile.src = 'assets/graphics/refinery.png';
 const turretTile = new Image(HEX_SIZE, HEX_SIZE);
 turretTile.src = 'assets/graphics/turret.png';
 const podTile = new Image(HEX_SIZE, HEX_SIZE);
 podTile.src = 'assets/graphics/pod.png';
 const ccTileCpu = new Image(HEX_SIZE, HEX_SIZE);
 ccTileCpu.src = 'assets/graphics/command-center-cpu.png';
-const mineTileCpu = new Image(HEX_SIZE, HEX_SIZE);
-mineTileCpu.src = 'assets/graphics/mine-cpu.png';
+const refineryTileCpu = new Image(HEX_SIZE, HEX_SIZE);
+refineryTileCpu.src = 'assets/graphics/refinery-cpu.png';
 const turretTileCpu = new Image(HEX_SIZE, HEX_SIZE);
 turretTileCpu.src = 'assets/graphics/turret-cpu.png';
 const podTileCpu = new Image(HEX_SIZE, HEX_SIZE);
@@ -81,11 +81,11 @@ const DIRECTION = {
   RIGHT: 1
 }
 
-// buildings collection
+// buildings collection (used as template for creating new buildings)
 const buildings = {
   commandCenter: {
     id: undefined,
-    area: 4,
+    area: 4, // Area Of Influence generated
     cooldown: 30,
     cooldownRemaining: 0,
     cost: 300,
@@ -103,7 +103,7 @@ const buildings = {
     range: 6,
     totalHP: 200
   },
-  mine: {
+  refinery: {
     id: undefined,
     area: 1,
     cooldown: 10,
@@ -238,7 +238,7 @@ const drawMap = () => {
         if (i === selectedTile[0] && j === selectedTile[1]) {
           if (cell.invalidSelection) {
             ctx.filter = `sepia(1) hue-rotate(-40deg) saturate(200%)`;
-          } else if (cell.type !== "mountain") {
+          } else if (cell.type !== "mountain" && cell.aoi !== PLAYERS.CPU) {
             ctx.filter = `brightness(${selectionBrightness}%)`;
           } else {
             ctx.filter = `sepia(1) hue-rotate(-40deg) saturate(200%)`;
@@ -320,22 +320,22 @@ const drawMap = () => {
                 ctx.font = "12px Arial";
                 ctx.fillText(cell.building.turret.hp, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
               }
-            } else if (cell.building.mine) {
+            } else if (cell.building.refinery) {
               if (i % 2 === 0) {
-                ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? mineTile : mineTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
-                if (cell.building.mine.hp < cell.building.mine.totalHP) {
-                  drawHP(i, j, hOffset, cell.building.mine.hp/cell.building.mine.totalHP, true);
+                ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? refineryTile : refineryTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
+                if (cell.building.refinery.hp < cell.building.refinery.totalHP) {
+                  drawHP(i, j, hOffset, cell.building.refinery.hp/cell.building.refinery.totalHP, true);
                 }
               } else {
-                ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? mineTile : mineTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
-                if (cell.building.mine.hp < cell.building.mine.totalHP) {
-                  drawHP(i, j, hOffset, cell.building.mine.hp/cell.building.mine.totalHP, false);
+                ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? refineryTile : refineryTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
+                if (cell.building.refinery.hp < cell.building.refinery.totalHP) {
+                  drawHP(i, j, hOffset, cell.building.refinery.hp/cell.building.refinery.totalHP, false);
                 }
               }
               if (debuggingMode) {
                 ctx.fillStyle = "black";
                 ctx.font = "12px Arial";
-                ctx.fillText(cell.building.mine.hp, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
+                ctx.fillText(cell.building.refinery.hp, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
               }
             }
           }
@@ -351,8 +351,8 @@ const canBuild = buildingName => {
         return helium3 > buildings.commandCenter.cost;
       case "turret":
         return helium3 > buildings.turret.cost;
-      case "mine":
-        return helium3 > buildings.mine.cost;
+      case "refinery":
+        return helium3 > buildings.refinery.cost;
       default:
         return false;
     }
@@ -363,12 +363,12 @@ const drawUI = () => {
     const baseX = 60;
     const { cooldown: ccCooldown, cooldownRemaining: ccCooldownRemaining, cost: ccCost } = buildings.commandCenter;
     const { cooldown: turretCooldown, cooldownRemaining: turretCooldownRemaining, cost: turretCost } = buildings.turret;
-    const { cooldown: mineCooldown, cooldownRemaining: mineCooldownRemaining, cost: mineCost } = buildings.mine;
+    const { cooldown: refineryCooldown, cooldownRemaining: refineryCooldownRemaining, cost: refineryCost } = buildings.refinery;
     // cooldown
     ctx.fillStyle = "#333333";
     ctx.fillRect(baseX, 490, ((ccCooldown - ccCooldownRemaining) / ccCooldown) * 240 , 30);
     ctx.fillRect(baseX, 520, ((turretCooldown - turretCooldownRemaining) / turretCooldown) * 240 , 30);
-    ctx.fillRect(baseX, 550, ((mineCooldown - mineCooldownRemaining) / mineCooldown) * 240 , 30);
+    ctx.fillRect(baseX, 550, ((refineryCooldown - refineryCooldownRemaining) / refineryCooldown) * 240 , 30);
 
     ctx.strokeStyle = "gray";
     // command center
@@ -379,9 +379,9 @@ const drawUI = () => {
     ctx.strokeRect(baseX, 520, 240, 30);
     ctx.fillStyle = buildButtonPressed === "2" && canBuild("turret") ? "#77aa33" : "gray";
     ctx.fillRect(baseX + 5, 525, 20, 20);
-    // mine
+    // refinery
     ctx.strokeRect(baseX, 550, 240, 30);
-    ctx.fillStyle = buildButtonPressed === "3" && canBuild("mine") ? "#77aa33" : "gray";
+    ctx.fillStyle = buildButtonPressed === "3" && canBuild("refinery") ? "#77aa33" : "gray";
     ctx.fillRect(baseX + 5, 555, 20, 20);
     // texts
     ctx.fillStyle = "black";
@@ -393,14 +393,14 @@ const drawUI = () => {
     ctx.fillText(`Command Center (Cost: ${buildings.commandCenter.cost})`, baseX + 30, 510);
     ctx.fillStyle = turretCooldownRemaining > 0 || helium3 < turretCost ? "gray" : "white";
     ctx.fillText(`Turret (Cost: ${buildings.turret.cost})`, baseX + 30, 540);
-    ctx.fillStyle = mineCooldownRemaining > 0 || helium3 < mineCost ? "gray" : "white";
-    ctx.fillText(`Mine (Cost: ${buildings.mine.cost})`, baseX + 30, 570);
+    ctx.fillStyle = refineryCooldownRemaining > 0 || helium3 < refineryCost ? "gray" : "white";
+    ctx.fillText(`Mine (Cost: ${buildings.refinery.cost})`, baseX + 30, 570);
     // confirmation messages
     if (buildButtonPressed === "1" && canBuild("commandCenter")) {
       ctx.fillText("Press again to confirm", baseX + 250, 510);
     } else if (buildButtonPressed === "2" && canBuild("turret")) {
       ctx.fillText("Press again to confirm", baseX + 250, 540);
-    } else if (buildButtonPressed === "3" && canBuild("mine")) {
+    } else if (buildButtonPressed === "3" && canBuild("refinery")) {
       ctx.fillText("Press again to confirm", baseX + 250, 570);
     }
     // helium reserve
@@ -473,7 +473,7 @@ const generateAoI = (step = 0, currentAoIScore = 4) => {
     } else if (buildButtonPressed === "2") {
       map[selectedTile[0]][selectedTile[1]].building = { placeholder: { type: "placeholder", area: buildings.turret.area } };
     } else if (buildButtonPressed === "3") {
-      map[selectedTile[0]][selectedTile[1]].building = { placeholder: { type: "placeholder", area: buildings.mine.area } };
+      map[selectedTile[0]][selectedTile[1]].building = { placeholder: { type: "placeholder", area: buildings.refinery.area } };
     }
   }
 
@@ -487,8 +487,8 @@ const generateAoI = (step = 0, currentAoIScore = 4) => {
           cell.aoiScore = cell.building.commandCenter.area;
         } else if (cell.building.turret) {
           cell.aoiScore = cell.building.turret.area;
-        } else if (cell.building.mine) {
-          cell.aoiScore = cell.building.mine.area;
+        } else if (cell.building.refinery) {
+          cell.aoiScore = cell.building.refinery.area;
         } else if (cell.building.placeholder) {
           cell.aoiScore = cell.building.placeholder.area;
           cell.aoi = PLAYERS.SELECTION;
@@ -576,7 +576,7 @@ const generateMap = (width, height) => {
 const gatherResources = () => {
   map.forEach((col, i) => {
     col.forEach((cell, j) => {
-      if (cell?.building?.mine && cell.aoi === PLAYERS.HUMAN) {
+      if (cell?.building?.refinery && cell.aoi === PLAYERS.HUMAN) {
         helium3 += HELIUM3_INC;
       }
     });
@@ -632,15 +632,15 @@ const findAllTurrets = () => {
 }
 
 const findAllMines = () => {
-  const mines = [];
+  const refineries = [];
   map.forEach((col, i) => {
     col.forEach((cell, j) => {
-      if (cell?.building?.mine) {
-        mines.push({ cell, x: i, y: j });
+      if (cell?.building?.refinery) {
+        refineries.push({ cell, x: i, y: j });
       }
     });
   });
-  return mines;
+  return refineries;
 }
 
 
@@ -701,33 +701,33 @@ const FSM = {
     INIT: {
       createCC() {
         // console.log("CREATE_CC");
-        const mine = findAvailableCellOfType("helium3");
-        map[mine.x + 1][mine.y].building = { commandCenter: { ...buildings.commandCenter }, createdAt: loop };
-        map[mine.x + 1][mine.y].building.id = getNewId();
-        map[mine.x + 1][mine.y].aoi = PLAYERS.CPU;
-        map[mine.x + 1][mine.y].landingProgress = 0;
+        const refinery = findAvailableCellOfType("helium3");
+        map[refinery.x + 1][refinery.y].building = { commandCenter: { ...buildings.commandCenter }, createdAt: loop };
+        map[refinery.x + 1][refinery.y].building.id = getNewId();
+        map[refinery.x + 1][refinery.y].aoi = PLAYERS.CPU;
+        map[refinery.x + 1][refinery.y].landingProgress = 0;
         setTimeout(() => {
-          const cellPos = getCellCoordinates(mine.x + 1, mine.y);
-          startParticleSystem(map[mine.x + 1][mine.y].building.id, cellPos[0] + 5, cellPos[1] + 10, { r: 220, g: 200, b: 0}, "down", { initTtl: 20, once: true, speed: 0.5, maxParticles: 30 });
+          const cellPos = getCellCoordinates(refinery.x + 1, refinery.y);
+          startParticleSystem(map[refinery.x + 1][refinery.y].building.id, cellPos[0] + 5, cellPos[1] + 10, { r: 220, g: 200, b: 0}, "down", { initTtl: 20, once: true, speed: 0.5, maxParticles: 30 });
         }, 900);
-        // console.log("mine", mine);
+        // console.log("refinery", refinery);
         this.state = "CREATE_CC";
       }
     },
     CREATE_CC: {
       createMine() {
-        const mine = findAvailableCellOfType("helium3");
-        map[mine.x][mine.y].building = { mine: { ...buildings.mine }, createdAt: loop };
-        map[mine.x][mine.y].building.id = getNewId();
-        map[mine.x][mine.y].aoi = PLAYERS.CPU;
-        map[mine.x][mine.y].landingProgress = 0;
+        const refinery = findAvailableCellOfType("helium3");
+        map[refinery.x][refinery.y].building = { refinery: { ...buildings.refinery }, createdAt: loop };
+        map[refinery.x][refinery.y].building.id = getNewId();
+        map[refinery.x][refinery.y].aoi = PLAYERS.CPU;
+        map[refinery.x][refinery.y].landingProgress = 0;
         // console.log("CREATE_MINE");
         setTimeout(() => {
-          const cellPos = getCellCoordinates(mine.x + 1, mine.y);
-          startParticleSystem(map[mine.x][mine.y].building.id, cellPos[0] + 5, cellPos[1] + 10, { r: 220, g: 200, b: 0}, "down", { initTtl: 20, once: true, speed: 0.5, maxParticles: 30 });
+          const cellPos = getCellCoordinates(refinery.x + 1, refinery.y);
+          startParticleSystem(map[refinery.x][refinery.y].building.id, cellPos[0] + 5, cellPos[1] + 10, { r: 220, g: 200, b: 0}, "down", { initTtl: 20, once: true, speed: 0.5, maxParticles: 30 });
         }, 900);
-        const cellPos = getCellCoordinates(mine.x, mine.y);
-        startParticleSystem(map[mine.x][mine.y].building.id, cellPos[0] + 17, cellPos[1], { r: 0, g: 255, b: 0}, "up", { speed: 0.3 });
+        const cellPos = getCellCoordinates(refinery.x, refinery.y);
+        startParticleSystem(map[refinery.x][refinery.y].building.id, cellPos[0] + 17, cellPos[1], { r: 0, g: 255, b: 0}, "up", { speed: 0.3 });
         this.state = "CREATE_MINE";
       }
     },
@@ -737,9 +737,9 @@ const FSM = {
         // console.log("helium", heliumSources);
         const ownAvailableSources = heliumSources.filter(h => h.cell.aoi === PLAYERS.CPU && !h.cell.building);
         // console.log("ownAvailableSources", ownAvailableSources);
-        // if mine is near
+        // if refinery is near
         if (ownAvailableSources.length > 0) {
-          map[ownAvailableSources[0].x][ownAvailableSources[0].y].building = { mine: { ...buildings.mine }, createdAt: loop };
+          map[ownAvailableSources[0].x][ownAvailableSources[0].y].building = { refinery: { ...buildings.refinery }, createdAt: loop };
           map[ownAvailableSources[0].x][ownAvailableSources[0].y].building.id = getNewId();
           map[ownAvailableSources[0].x][ownAvailableSources[0].y].aoi = PLAYERS.CPU;
           map[ownAvailableSources[0].x][ownAvailableSources[0].y].landingProgress = 0;
@@ -846,8 +846,8 @@ const IAStep = () => {
 const turretAttack = () => {
   const ccs = findAllCommandCenters();
   const turrets = findAllTurrets();
-  const mines = findAllMines();
-  const all = turrets.concat(mines).concat(ccs);
+  const refineries = findAllMines();
+  const all = turrets.concat(refineries).concat(ccs);
   // console.log("turrets", turrets);
   let attacked = false;
   // calculate distance with every other building
@@ -866,11 +866,11 @@ const turretAttack = () => {
             if (t2.cell.building?.turret?.hp <= 0) {
               destroy(t2);
             }
-          } else if (t2.cell.building?.mine) {
-            if (t2.cell.building?.mine && t.cell.building?.turret) {
-              t2.cell.building.mine.hp -= t.cell.building.turret.damage;
+          } else if (t2.cell.building?.refinery) {
+            if (t2.cell.building?.refinery && t.cell.building?.turret) {
+              t2.cell.building.refinery.hp -= t.cell.building.turret.damage;
             }
-            if (t2.cell.building?.mine?.hp <= 0) {
+            if (t2.cell.building?.refinery?.hp <= 0) {
               destroy(t2);
             }
           } else if (t2.cell.building?.commandCenter) {
@@ -984,7 +984,7 @@ const build = buildingName => {
       startParticleSystem(cell.building.id, cellPos[0] + 5, cellPos[1] + 10, { r: 220, g: 200, b: 0}, "down", { initTtl: 20, once: true, speed: 0.5, maxParticles: 30 });
     }, 900);
     setTimeout(() => {
-      if (buildingName === "mine") {
+      if (buildingName === "refinery") {
         const cellPos = getCellCoordinates(cellX, cellY);
         startParticleSystem(cell.building.id, cellPos[0] + 17, cellPos[1], { r: 0, g: 255, b: 0}, "up", { speed: 0.3 });
       }
@@ -1014,7 +1014,7 @@ const updateSelectedCellInfo = () => {
       selectedCellInfo = "Command Center";
     } else if (building?.turret) {
       selectedCellInfo = "Turret";
-    } else if (building?.mine) {
+    } else if (building?.refinery) {
       selectedCellInfo = "Refinery";
     } else if (type === "mountain") {
       selectedCellInfo = "Mountains";
@@ -1078,7 +1078,7 @@ const initInteraction = () => {
           if (buildButtonPressed === "3") {
             buildButtonPressed = undefined;
             pristineMap = false;
-            build("mine");
+            build("refinery");
           } else {
             buildButtonPressed = "3";
           }
