@@ -25,7 +25,7 @@ const map = [];
 let loop = 0;
 let IAStepNumber = 0;
 let selectedTile = [0, 0];
-let helium3 = 5000; // TODO: use final value
+let helium3 = 1000;
 const cooldownTimers = {};
 let incrementalId = 0; // for generating building id
 
@@ -352,40 +352,64 @@ const drawMap = () => {
   })
 };
 
+const canBuild = buildingName => {
+    switch (buildingName) {
+      case "commandCenter":
+        return helium3 > buildings.commandCenter.cost;
+      case "turret":
+        return helium3 > buildings.turret.cost;
+      case "mine":
+        return helium3 > buildings.mine.cost;
+      default:
+        return false;
+    }
+};
+
 const drawUI = () => {
   if (gameState === GAME_STATES.RUNNING) {
+    const baseX = 60;
     const { cooldown: ccCooldown, cooldownRemaining: ccCooldownRemaining, cost: ccCost } = buildings.commandCenter;
     const { cooldown: turretCooldown, cooldownRemaining: turretCooldownRemaining, cost: turretCost } = buildings.turret;
     const { cooldown: mineCooldown, cooldownRemaining: mineCooldownRemaining, cost: mineCost } = buildings.mine;
     // cooldown
     ctx.fillStyle = "#333333";
-    ctx.fillRect(100, 490, ((ccCooldown - ccCooldownRemaining) / ccCooldown) * 240 , 30);
-    ctx.fillRect(100, 520, ((turretCooldown - turretCooldownRemaining) / turretCooldown) * 240 , 30);
-    ctx.fillRect(100, 550, ((mineCooldown - mineCooldownRemaining) / mineCooldown) * 240 , 30);
+    ctx.fillRect(baseX, 490, ((ccCooldown - ccCooldownRemaining) / ccCooldown) * 240 , 30);
+    ctx.fillRect(baseX, 520, ((turretCooldown - turretCooldownRemaining) / turretCooldown) * 240 , 30);
+    ctx.fillRect(baseX, 550, ((mineCooldown - mineCooldownRemaining) / mineCooldown) * 240 , 30);
 
     ctx.strokeStyle = "gray";
-    ctx.fillStyle = "gray";
     // command center
-    ctx.strokeRect(100, 490, 240, 30);
-    ctx.fillRect(105, 495, 20, 20);
+    ctx.strokeRect(baseX, 490, 240, 30);
+    ctx.fillStyle = buildButtonPressed === "1" && canBuild("commandCenter") ? "#77aa33" : "gray";
+    ctx.fillRect(baseX + 5, 495, 20, 20);
     // turret
-    ctx.strokeRect(100, 520, 240, 30);
-    ctx.fillRect(105, 525, 20, 20);
+    ctx.strokeRect(baseX, 520, 240, 30);
+    ctx.fillStyle = buildButtonPressed === "2" && canBuild("turret") ? "#77aa33" : "gray";
+    ctx.fillRect(baseX + 5, 525, 20, 20);
     // mine
-    ctx.strokeRect(100, 550, 240, 30);
-    ctx.fillRect(105, 555, 20, 20);
+    ctx.strokeRect(baseX, 550, 240, 30);
+    ctx.fillStyle = buildButtonPressed === "3" && canBuild("mine") ? "#77aa33" : "gray";
+    ctx.fillRect(baseX + 5, 555, 20, 20);
     // texts
     ctx.fillStyle = "black";
     ctx.font = "14px Arial";
-    ctx.fillText("1", 110, 510);
-    ctx.fillText("2", 110, 540);
-    ctx.fillText("3", 110, 570);
+    ctx.fillText("1", baseX + 10, 510);
+    ctx.fillText("2", baseX + 10, 540);
+    ctx.fillText("3", baseX + 10, 570);
     ctx.fillStyle = ccCooldownRemaining > 0 || helium3 < ccCost ? "gray" : "white";
-    ctx.fillText(`Command Center (Cost: ${buildings.commandCenter.cost})`, 130, 510);
+    ctx.fillText(`Command Center (Cost: ${buildings.commandCenter.cost})`, baseX + 30, 510);
     ctx.fillStyle = turretCooldownRemaining > 0 || helium3 < turretCost ? "gray" : "white";
-    ctx.fillText(`Turret (Cost: ${buildings.turret.cost})`, 130, 540);
+    ctx.fillText(`Turret (Cost: ${buildings.turret.cost})`, baseX + 30, 540);
     ctx.fillStyle = mineCooldownRemaining > 0 || helium3 < mineCost ? "gray" : "white";
-    ctx.fillText(`Mine (Cost: ${buildings.mine.cost})`, 130, 570);
+    ctx.fillText(`Mine (Cost: ${buildings.mine.cost})`, baseX + 30, 570);
+    // confirmation messages
+    if (buildButtonPressed === "1" && canBuild("commandCenter")) {
+      ctx.fillText("Press again to confirm", baseX + 250, 510);
+    } else if (buildButtonPressed === "2" && canBuild("turret")) {
+      ctx.fillText("Press again to confirm", baseX + 250, 540);
+    } else if (buildButtonPressed === "3" && canBuild("mine")) {
+      ctx.fillText("Press again to confirm", baseX + 250, 570);
+    }
 
     // helium reserve
     ctx.fillStyle = "white";
@@ -556,7 +580,7 @@ const generateMap = (width, height) => {
 const gatherResources = () => {
   map.forEach((col, i) => {
     col.forEach((cell, j) => {
-      if (cell?.building?.mine) {
+      if (cell?.building?.mine && cell.aoi === PLAYERS.HUMAN) {
         helium3 += HELIUM3_INC;
       }
     });
