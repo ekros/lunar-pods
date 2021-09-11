@@ -1,13 +1,11 @@
-const HEX_SIZE = 48;
+const HEX_SIZE = 46;
 const VERT_HEX_OFFSET = 24;
 const HORIZ_HEX_OFFSET = -10;
-const HORIZ_MAP_OFFSET = 10;
+const HORIZ_MAP_OFFSET = 30;
 const VERT_MAP_OFFSET = 40;
-const BUILDING_OFFSET = 20;
+const BUILDING_OFFSET = 40;
 const HELIUM3_IN_MAP = 5;
 // const MAX_HELIUM3_IN_MAP = 5; TODO: add max?
-const RAISED_TILES_IN_MAP = 5;
-const RAISED_OFFSET = -10;
 const MOUNTAIN_TILES = 20;
 const SEL_BRIGHTNESS_MIN = 80;
 const SEL_BRIGHTNESS_MAX = 120;
@@ -38,7 +36,7 @@ tile.src = 'assets/graphics/tile.png';
 const tileDark = new Image(HEX_SIZE, HEX_SIZE);
 tileDark.src = 'assets/graphics/tile-dark.png';
 const mountainTile = new Image(HEX_SIZE, HEX_SIZE);
-mountainTile.src = 'assets/graphics/mountain.png';
+mountainTile.src = 'assets/graphics/mountains.png';
 const helium3Tile = new Image(HEX_SIZE, HEX_SIZE);
 helium3Tile.src = 'assets/graphics/helium3.png';
 const ccTile = new Image(HEX_SIZE, HEX_SIZE);
@@ -250,39 +248,33 @@ const drawMap = () => {
           ctx.filter = "none";
         }
         if (i % 2 === 0) {
-          if (cell.raised) {
-            ctx.drawImage(tileDark, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
-          }
-          ctx.drawImage(tile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
+          ctx.drawImage(tile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
           if (cell.aoi || cell.invalidSelection) {
             let lastFilter = ctx.filter;
             if (cell.aoi === PLAYERS.CPU) {
               ctx.filter = `sepia(1) hue-rotate(0deg) saturate(140%)`;
             }
-            ctx.drawImage(aoiTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
+            ctx.drawImage(aoiTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
             ctx.filter = lastFilter;
           }
           if (cell && cell.type === "helium3") {
-            ctx.drawImage(helium3Tile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
+            ctx.drawImage(helium3Tile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
           }
           if (cell && cell.type === "mountain") {
             ctx.drawImage(mountainTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
           }
         } else {
-          if (cell.raised) {
-            ctx.drawImage(tileDark, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
-          }
-          ctx.drawImage(tile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
+          ctx.drawImage(tile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
           if (cell.aoi || cell.invalidSelection) {
             let lastFilter = ctx.filter;
             if (cell.aoi === PLAYERS.CPU) {
               ctx.filter = `sepia(1) hue-rotate(0deg) saturate(120%)`;
             }
-            ctx.drawImage(aoiTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
+            ctx.drawImage(aoiTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
             ctx.filter = lastFilter;
           }
           if (cell && cell.type === "helium3") {
-            ctx.drawImage(helium3Tile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + (cell.raised ? RAISED_OFFSET : 0) + VERT_MAP_OFFSET);
+            ctx.drawImage(helium3Tile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
           }
           if (cell && cell.type === "mountain") {
             ctx.drawImage(mountainTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
@@ -558,13 +550,6 @@ const generateMap = (width, height) => {
   for (let i = 0; i < HELIUM3_IN_MAP; i++) {
     map[Math.floor(Math.random() * width)][Math.floor(Math.random() * height)] = {
       type: "helium3"
-    }
-  }
-  // allocate raised tiles // disable for now
-  for (let i = 0; i < RAISED_TILES_IN_MAP; i++) {
-    let cell = map[Math.floor(Math.random() * height)][Math.floor(Math.random() * width)];
-    map[Math.floor(Math.random() * width)][Math.floor(Math.random() * height)] = { ...cell,
-      raised: true,
     }
   }
 
