@@ -66,6 +66,7 @@ let buildButtonPressed;
 let pristineMap = true;
 let gameState = GAME_STATES.RUNNING;
 let particleSystems = []; // fire, smoke..
+let selectedCellInfo = "";
 let debuggingMode = false;
 
 const PLAYERS = {
@@ -402,11 +403,21 @@ const drawUI = () => {
     } else if (buildButtonPressed === "3" && canBuild("mine")) {
       ctx.fillText("Press again to confirm", baseX + 250, 570);
     }
-
     // helium reserve
     ctx.fillStyle = "white";
     ctx.font = "20px Arial";
-    ctx.fillText(`HELIUM-3: ${helium3}`, 600, 540);
+    ctx.fillText(`HELIUM-3: ${helium3}`, 600, 580);
+    // tile info
+    if (selectedCellInfo) {
+      ctx.fillStyle = "gray";
+      ctx.fillRect(600, 450, 150, 80);
+      ctx.fillStyle = "#333333";
+      ctx.fillRect(605, 455, 140, 70);
+      ctx.fillStyle = "white";
+      ctx.font = "14px Arial";
+      ctx.fillText(selectedCellInfo, 630, 500);
+    }
+
   } else if (gameState === GAME_STATES.WIN) {
     ctx.fillStyle = "white";
     ctx.font = "16px Arial";
@@ -995,6 +1006,25 @@ const destroy = cell => {
   generateAoI();
 }
 
+const updateSelectedCellInfo = () => {
+    const selection = map[selectedTile[0]][selectedTile[1]];
+    console.log("selec", selection);
+    const { type, building } = selection;
+    if (building?.commandCenter) {
+      selectedCellInfo = "Command Center";
+    } else if (building?.turret) {
+      selectedCellInfo = "Turret";
+    } else if (building?.mine) {
+      selectedCellInfo = "Refinery";
+    } else if (type === "mountain") {
+      selectedCellInfo = "Mountains";
+    } else if (type === "helium3") {
+      selectedCellInfo = "Helium-3";
+    } else {
+      selectedCellInfo = "";
+    }
+}
+
 const initInteraction = () => {
   document.addEventListener("keydown", ev => {
     // console.log(ev.keyCode);
@@ -1003,18 +1033,22 @@ const initInteraction = () => {
         // arrows
         case 37:
         selectedTile[0] = selectedTile[0] > 0 ? selectedTile[0] - 1 : 0;
+        updateSelectedCellInfo();
         buildButtonPressed = undefined;
         break;
         case 38:
         selectedTile[1] = selectedTile[1] > 0 ? selectedTile[1] - 1 : 0;
+        updateSelectedCellInfo();
         buildButtonPressed = undefined;
         break;
         case 39:
         selectedTile[0] = selectedTile[0] < MAP_WIDTH - 1 ? selectedTile[0] + 1 : MAP_WIDTH - 1;
+        updateSelectedCellInfo();
         buildButtonPressed = undefined;
         break;
         case 40:
         selectedTile[1] = selectedTile[1] < MAP_HEIGHT - 1 ? selectedTile[1] + 1 : MAP_HEIGHT - 1;
+        updateSelectedCellInfo();
         buildButtonPressed = undefined;
         break;
         case 49: // 1
