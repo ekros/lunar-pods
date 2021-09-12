@@ -163,17 +163,29 @@ const updateParticleSystems = () => {
           updatedParticle.ttl -= 1;
           if (updatedParticle.ttl > 0) {
             if (direction === "up") {
+              updatedParticle.x += Math.random()*2 - 1;
               updatedParticle.y -= speed;
-              updatedParticle.x += Math.random()*2 - 1;
             } else if (direction === "down") {
-              updatedParticle.y -= -speed;
               updatedParticle.x += Math.random()*2 - 1;
+              updatedParticle.y -= -speed;
             } else if (direction === "left") {
-              updatedParticle.y -= Math.random()*2 - 1;
               updatedParticle.x += -speed;
-            } else if (direction === "right") {
               updatedParticle.y -= Math.random()*2 - 1;
+            } else if (direction === "right") {
               updatedParticle.x += speed;
+              updatedParticle.y -= Math.random()*2 - 1;
+            } else if (direction === "up left") {
+              updatedParticle.x -= speed/2;
+              updatedParticle.y -= speed/2;
+            } else if (direction === "up right") {
+              updatedParticle.x += speed/2;
+              updatedParticle.y -= speed/2;
+            } else if (direction === "down left") {
+              updatedParticle.x -= speed/2;
+              updatedParticle.y += speed/2;
+            } else if (direction === "down right") {
+              updatedParticle.x += speed/2;
+              updatedParticle.y += speed/2;
             }
             updatedParticle.opacity -= 1/initTtl;
             updatedParticle.size -= initSize/initTtl;
@@ -867,6 +879,30 @@ const AIStep = () => {
   }
 };
 
+const getTurretDirection = (x1, y1, x2, y2) => {
+  if (x1 < x2 && y1 < y2 + 1 && y1 > y2 - 1) {
+    return "right";
+  } else if (x1 > x2 && y1 < y2 + 1 && y1 > y2 - 1) {
+    return "left";
+  } else if (x1 < x2 + 1 && x1 > x2 - 1 && y1 > y2) {
+    return "up";
+  } else if (x1 < x2 + 1 && x1 > x2 - 1 && y1 < y2) {
+    return "down";
+  } else if (x1 > x2 + 1 && y1 < y2 + 1) {
+    return "down left";
+  } else if (x1 > x2 + 1 && y1 > y2 - 1) {
+    return "up left";
+  } else if (x1 > x2 + 1 && y1 < y2 - 1) {
+    return "up right";
+  } else if (x1 > x2 + 1 && y1 > y2) {
+    return "down right";
+  } else if (x1 < x2) {
+    return "right";
+  } else if (x1 > x2) {
+    return "left";
+  }
+};
+
 const turretAttack = () => {
   const ccs = findAllCommandCenters();
   const turrets = findAllTurrets();
@@ -904,7 +940,7 @@ const turretAttack = () => {
           }
           if (map[t.x][t.y].building) {
             const cellPos = getCellCoordinates(t.x, t.y);
-            startParticleSystem(map[t.x][t.y].building.id, cellPos[0] + 17, cellPos[1], { r: 255, g: 180, b: 0}, t2.x - t.x > 0 ? "right" : "left", { initSize: 4, initTtl: 50, maxParticles: 3, speed: 4 });
+            startParticleSystem(map[t.x][t.y].building.id, cellPos[0] + 17, cellPos[1], { r: 255, g: 180, b: 0}, getTurretDirection(t.x, t.y, t2.x, t2.y), { initSize: 4, initTtl: 50, maxParticles: 3, speed: 4 });
           }
           attacked = true;
         }
