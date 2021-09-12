@@ -12,7 +12,7 @@ const MAP_WIDTH = 20;
 const MAP_HEIGHT = 8;
 const HELIUM3_INC = 10;
 const LANDING_OFFSET = -100;
-const GAME_STATES = {
+const STATES = { // GAME STATES
   TITLE: 0,
   RUNNING: 1,
   WIN: 2,
@@ -27,7 +27,7 @@ const DIFFICULTY_LEVELS = {
 const map = [];
 let loop = 0;
 let AIStepNumber = 0;
-let selectedTile = [0, 0];
+let selCell = [0, 0];
 let helium3 = 1000;
 const cooldownTimers = {};
 let incrementalId = 0; // for generating building id
@@ -35,31 +35,25 @@ let incrementalId = 0; // for generating building id
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
+const loadAsset = file => {
+  const asset = new Image(HEX_SIZE, HEX_SIZE);
+  asset.src = `assets/graphics/${file}`;
+  return asset;
+};
+
 // load graphics
-const tile = new Image(HEX_SIZE, HEX_SIZE);
-tile.src = 'assets/graphics/tile.png';
-const mountainTile = new Image(HEX_SIZE, HEX_SIZE);
-mountainTile.src = 'assets/graphics/mountains.png';
-const helium3Tile = new Image(HEX_SIZE, HEX_SIZE);
-helium3Tile.src = 'assets/graphics/helium3.png';
-const ccTile = new Image(HEX_SIZE, HEX_SIZE);
-ccTile.src = 'assets/graphics/command-center.png';
-const refineryTile = new Image(HEX_SIZE, HEX_SIZE);
-refineryTile.src = 'assets/graphics/refinery.png';
-const turretTile = new Image(HEX_SIZE, HEX_SIZE);
-turretTile.src = 'assets/graphics/turret.png';
-const podTile = new Image(HEX_SIZE, HEX_SIZE);
-podTile.src = 'assets/graphics/pod.png';
-const ccTileCpu = new Image(HEX_SIZE, HEX_SIZE);
-ccTileCpu.src = 'assets/graphics/command-center-cpu.png';
-const refineryTileCpu = new Image(HEX_SIZE, HEX_SIZE);
-refineryTileCpu.src = 'assets/graphics/refinery-cpu.png';
-const turretTileCpu = new Image(HEX_SIZE, HEX_SIZE);
-turretTileCpu.src = 'assets/graphics/turret-cpu.png';
-const podTileCpu = new Image(HEX_SIZE, HEX_SIZE);
-podTileCpu.src = 'assets/graphics/pod-cpu.png';
-const aoiTile = new Image(HEX_SIZE, HEX_SIZE);
-aoiTile.src = 'assets/graphics/aoi-human.png';
+const tile = loadAsset("tile.png");
+const mountainTile = loadAsset("mountains.png");
+const helium3Tile = loadAsset("helium3.png");
+const ccTile = loadAsset("command-center.png");
+const refineryTile = loadAsset("refinery.png");
+const turretTile = loadAsset("turret.png");
+const podTile = loadAsset("pod.png");
+const ccTileCpu = loadAsset("command-center-cpu.png");
+const refineryTileCpu = loadAsset("refinery-cpu.png");
+const turretTileCpu = loadAsset("turret-cpu.png");
+const podTileCpu = loadAsset("pod-cpu.png");
+const aoiTile = loadAsset("aoi-human.png");
 
 let hOffset = 0;
 let selectionBrightness = SEL_BRIGHTNESS_MIN;
@@ -67,7 +61,7 @@ let selectionBrightnessInc = 1;
 const stars = [];
 let buildButtonPressed;
 let pristineMap = true;
-let gameState = GAME_STATES.TITLE;
+let gameState = STATES.TITLE;
 let gameDifficulty;
 let particleSystems = []; // fire, smoke..
 let selectedCellInfo = "";
@@ -87,7 +81,7 @@ const DIRECTION = {
 
 // buildings collection (used as template for creating new buildings)
 const buildings = {
-  commandCenter: {
+  cc: {
     id: undefined,
     area: 4, // Area Of Influence generated
     cooldown: 30,
@@ -150,56 +144,56 @@ const startParticleSystem = (id, initX, initY, color = {r: 255, g: 255, b: 255},
 };
 
 const updateParticleSystems = () => {
-  if (gameState === GAME_STATES.RUNNING) {
+  if (gameState === STATES.RUNNING) {
     particleSystems.forEach(system => {
       const { initX, initY, initTtl, initSize, maxParticles, color, direction, speed, once } = system.init;
       system.particles.forEach((p, index) => {
         if (!p.dead) {
           let { x, y, size } = p;
           ctx.clearRect(x, y, size, size);
-          let updatedParticle = { ...p };
-          ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${updatedParticle.opacity})`;
+          let newP = { ...p };
+          ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${newP.opacity})`;
           ctx.fillRect(x, y, size, size);
-          updatedParticle.ttl -= 1;
-          if (updatedParticle.ttl > 0) {
+          newP.ttl -= 1;
+          if (newP.ttl > 0) {
             if (direction === "up") {
-              updatedParticle.x += Math.random()*2 - 1;
-              updatedParticle.y -= speed;
+              newP.x += Math.random()*2 - 1;
+              newP.y -= speed;
             } else if (direction === "down") {
-              updatedParticle.x += Math.random()*2 - 1;
-              updatedParticle.y -= -speed;
+              newP.x += Math.random()*2 - 1;
+              newP.y -= -speed;
             } else if (direction === "left") {
-              updatedParticle.x += -speed;
-              updatedParticle.y -= Math.random()*2 - 1;
+              newP.x += -speed;
+              newP.y -= Math.random()*2 - 1;
             } else if (direction === "right") {
-              updatedParticle.x += speed;
-              updatedParticle.y -= Math.random()*2 - 1;
+              newP.x += speed;
+              newP.y -= Math.random()*2 - 1;
             } else if (direction === "up left") {
-              updatedParticle.x -= speed/2;
-              updatedParticle.y -= speed/2;
+              newP.x -= speed/2;
+              newP.y -= speed/2;
             } else if (direction === "up right") {
-              updatedParticle.x += speed/2;
-              updatedParticle.y -= speed/2;
+              newP.x += speed/2;
+              newP.y -= speed/2;
             } else if (direction === "down left") {
-              updatedParticle.x -= speed/2;
-              updatedParticle.y += speed/2;
+              newP.x -= speed/2;
+              newP.y += speed/2;
             } else if (direction === "down right") {
-              updatedParticle.x += speed/2;
-              updatedParticle.y += speed/2;
+              newP.x += speed/2;
+              newP.y += speed/2;
             }
-            updatedParticle.opacity -= 1/initTtl;
-            updatedParticle.size -= initSize/initTtl;
+            newP.opacity -= 1/initTtl;
+            newP.size -= initSize/initTtl;
           } else if (once) {
-            updatedParticle.opacity = 0;
-            updatedParticle.dead = true;
+            newP.opacity = 0;
+            newP.dead = true;
           } else {
-            updatedParticle.x = initX;
-            updatedParticle.y = initY;
-            updatedParticle.ttl = initTtl + Math.floor(Math.random()*20);
-            updatedParticle.opacity = 1;
-            updatedParticle.size = initSize;
+            newP.x = initX;
+            newP.y = initY;
+            newP.ttl = initTtl + Math.floor(Math.random()*20);
+            newP.opacity = 1;
+            newP.size = initSize;
           }
-          system.particles[index] = updatedParticle;
+          system.particles[index] = newP;
         }
       });
       if (system.particles.length < maxParticles) {
@@ -227,11 +221,11 @@ const drawStars = () => {
   });
 };
 
-const drawHP = (cellX, cellY, hOffset, hpPercentage, isEvenColumn) => {
+const drawHP = (cx, cy, hOffset, hpPercentage, isEvenColumn) => {
   ctx.fillStyle = "black";
-  ctx.fillRect(HEX_SIZE * cellX + (hOffset * cellX) + BUILDING_OFFSET, HEX_SIZE * cellY + (isEvenColumn ? VERT_HEX_OFFSET : 0) + VERT_MAP_OFFSET, 32, 4);
+  ctx.fillRect(HEX_SIZE * cx + (hOffset * cx) + BUILDING_OFFSET, HEX_SIZE * cy + (isEvenColumn ? VERT_HEX_OFFSET : 0) + VERT_MAP_OFFSET, 32, 4);
   ctx.fillStyle = "lime";
-  ctx.fillRect(HEX_SIZE * cellX + (hOffset * cellX) + BUILDING_OFFSET, HEX_SIZE * cellY + (isEvenColumn ? VERT_HEX_OFFSET : 0) + VERT_MAP_OFFSET, hpPercentage * 32, 4);
+  ctx.fillRect(HEX_SIZE * cx + (hOffset * cx) + BUILDING_OFFSET, HEX_SIZE * cy + (isEvenColumn ? VERT_HEX_OFFSET : 0) + VERT_MAP_OFFSET, hpPercentage * 32, 4);
 };
 
 const drawMap = () => {
@@ -249,7 +243,7 @@ const drawMap = () => {
         if (j > 0) {
           hOffset = HORIZ_HEX_OFFSET;
         }
-        if (i === selectedTile[0] && j === selectedTile[1]) {
+        if (i === selCell[0] && j === selCell[1]) {
           if (cell.invalidSelection) {
             ctx.filter = `sepia(1) hue-rotate(-40deg) saturate(200%)`;
           } else if (cell.type !== "mountain" && cell.aoi !== PLAYERS.CPU) {
@@ -303,22 +297,22 @@ const drawMap = () => {
           if (cell.landingProgress < 100) {
             ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? podTile : podTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET + (LANDING_OFFSET + cell.landingProgress));
           } else {
-            if (cell.building.commandCenter) {
+            if (cell.building.cc) {
               if (i % 2 === 0) {
                 ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? ccTile : ccTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
-                if (cell.building.commandCenter.hp < cell.building.commandCenter.totalHP) {
-                  drawHP(i, j, hOffset, cell.building.commandCenter.hp/cell.building.commandCenter.totalHP, true);
+                if (cell.building.cc.hp < cell.building.cc.totalHP) {
+                  drawHP(i, j, hOffset, cell.building.cc.hp/cell.building.cc.totalHP, true);
                 }
               } else {
                 ctx.drawImage(cell.aoi === PLAYERS.HUMAN ? ccTile : ccTileCpu, HEX_SIZE * i + (hOffset * i) + BUILDING_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
-                if (cell.building.commandCenter.hp < cell.building.commandCenter.totalHP) {
-                  drawHP(i, j, hOffset, cell.building.commandCenter.hp/cell.building.commandCenter.totalHP, false);
+                if (cell.building.cc.hp < cell.building.cc.totalHP) {
+                  drawHP(i, j, hOffset, cell.building.cc.hp/cell.building.cc.totalHP, false);
                 }
               }
               if (debuggingMode) {
                 ctx.fillStyle = "black";
                 ctx.font = "12px Arial";
-                ctx.fillText(cell.building.commandCenter.hp, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
+                ctx.fillText(cell.building.cc.hp, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_HEX_OFFSET + VERT_MAP_OFFSET);
               }
             } else if (cell.building.turret) {
               if (i % 2 === 0) {
@@ -364,8 +358,8 @@ const drawMap = () => {
 
 const canBuild = buildingName => {
     switch (buildingName) {
-      case "commandCenter":
-        return helium3 > buildings.commandCenter.cost;
+      case "cc":
+        return helium3 > buildings.cc.cost;
       case "turret":
         return helium3 > buildings.turret.cost;
       case "refinery":
@@ -376,9 +370,9 @@ const canBuild = buildingName => {
 };
 
 const drawUI = () => {
-  if (gameState === GAME_STATES.RUNNING) {
+  if (gameState === STATES.RUNNING) {
     const baseX = 60;
-    const { cooldown: ccCooldown, cooldownRemaining: ccCooldownRemaining, cost: ccCost } = buildings.commandCenter;
+    const { cooldown: ccCooldown, cooldownRemaining: ccCooldownRemaining, cost: ccCost } = buildings.cc;
     const { cooldown: turretCooldown, cooldownRemaining: turretCooldownRemaining, cost: turretCost } = buildings.turret;
     const { cooldown: refineryCooldown, cooldownRemaining: refineryCooldownRemaining, cost: refineryCost } = buildings.refinery;
     // cooldown
@@ -390,7 +384,7 @@ const drawUI = () => {
     ctx.strokeStyle = "gray";
     // command center
     ctx.strokeRect(baseX, 490, 240, 30);
-    ctx.fillStyle = buildButtonPressed === "1" && canBuild("commandCenter") ? "#77aa33" : "gray";
+    ctx.fillStyle = buildButtonPressed === "1" && canBuild("cc") ? "#77aa33" : "gray";
     ctx.fillRect(baseX + 5, 495, 20, 20);
     // turret
     ctx.strokeRect(baseX, 520, 240, 30);
@@ -407,13 +401,13 @@ const drawUI = () => {
     ctx.fillText("2", baseX + 10, 540);
     ctx.fillText("3", baseX + 10, 570);
     ctx.fillStyle = ccCooldownRemaining > 0 || helium3 < ccCost ? "gray" : "white";
-    ctx.fillText(`Command Center (Cost: ${buildings.commandCenter.cost})`, baseX + 30, 510);
+    ctx.fillText(`Command Center (Cost: ${buildings.cc.cost})`, baseX + 30, 510);
     ctx.fillStyle = turretCooldownRemaining > 0 || helium3 < turretCost ? "gray" : "white";
     ctx.fillText(`Turret (Cost: ${buildings.turret.cost})`, baseX + 30, 540);
     ctx.fillStyle = refineryCooldownRemaining > 0 || helium3 < refineryCost ? "gray" : "white";
     ctx.fillText(`Mine (Cost: ${buildings.refinery.cost})`, baseX + 30, 570);
     // confirmation messages
-    if (buildButtonPressed === "1" && canBuild("commandCenter")) {
+    if (buildButtonPressed === "1" && canBuild("cc")) {
       ctx.fillText("Press again to confirm", baseX + 250, 510);
     } else if (buildButtonPressed === "2" && canBuild("turret")) {
       ctx.fillText("Press again to confirm", baseX + 250, 540);
@@ -435,13 +429,13 @@ const drawUI = () => {
       ctx.fillText(selectedCellInfo, 630, 500);
     }
 
-  } else if (gameState === GAME_STATES.WIN) {
+  } else if (gameState === STATES.WIN) {
     ctx.fillStyle = "white";
     ctx.font = "16px Arial";
     ctx.fillText("YOU WIN!", 110, 510);
     ctx.font = "14px Arial";
     ctx.fillText("Press Enter to restart the game", 310, 510);
-  } else if (gameState === GAME_STATES.LOSE) {
+  } else if (gameState === STATES.LOSE) {
     ctx.fillStyle = "white";
     ctx.font = "16px Arial";
     ctx.fillText("YOU LOSE!", 110, 510);
@@ -477,19 +471,19 @@ const generateAoI = (step = 0, currentAoIScore = 4) => {
     });
   }
 
-  if (!map[selectedTile[0]][selectedTile[1]].aoi && buildButtonPressed && !pristineMap) {
-      map[selectedTile[0]][selectedTile[1]].invalidSelection = true;
+  if (!map[selCell[0]][selCell[1]].aoi && buildButtonPressed && !pristineMap) {
+      map[selCell[0]][selCell[1]].invalidSelection = true;
     return;
   }
 
 
-  if (!map[selectedTile[0]][selectedTile[1]].building) {
+  if (!map[selCell[0]][selCell[1]].building) {
     if (buildButtonPressed === "1") {
-        map[selectedTile[0]][selectedTile[1]].building = { placeholder: { type: "placeholder", area: buildings.commandCenter.area } };
+        map[selCell[0]][selCell[1]].building = { placeholder: { type: "placeholder", area: buildings.cc.area } };
     } else if (buildButtonPressed === "2") {
-      map[selectedTile[0]][selectedTile[1]].building = { placeholder: { type: "placeholder", area: buildings.turret.area } };
+      map[selCell[0]][selCell[1]].building = { placeholder: { type: "placeholder", area: buildings.turret.area } };
     } else if (buildButtonPressed === "3") {
-      map[selectedTile[0]][selectedTile[1]].building = { placeholder: { type: "placeholder", area: buildings.refinery.area } };
+      map[selCell[0]][selCell[1]].building = { placeholder: { type: "placeholder", area: buildings.refinery.area } };
     }
   }
 
@@ -499,8 +493,8 @@ const generateAoI = (step = 0, currentAoIScore = 4) => {
     if (step === 0) {
       if (cell?.building) {
         // cell.aoi = player;
-        if (cell.building.commandCenter) {
-          cell.aoiScore = cell.building.commandCenter.area;
+        if (cell.building.cc) {
+          cell.aoiScore = cell.building.cc.area;
         } else if (cell.building.turret) {
           cell.aoiScore = cell.building.turret.area;
         } else if (cell.building.refinery) {
@@ -564,17 +558,17 @@ const clearTurretRangePreview = () => {
   });
 };
 
-const generateTurretRangePreview = (cellX, cellY) => {
-  console.log("cell", cellX, cellY);
+const generateTurretRangePreview = (cx, cy) => {
+  console.log("cell", cx, cy);
   const ccs = findAllCommandCenters();
   const refineries = findAllMines();
   const turrets = findAllTurrets();
   const all = turrets.concat(refineries).concat(ccs);
-  const t = map[cellX][cellY];
+  const t = map[cx][cy];
   console.log("t", t);
   // calculate distance with every other building
   all.forEach((t2, j) => {
-    const dist = Math.sqrt(Math.pow((t2.x - cellX), 2) + Math.pow((t2.y - cellY), 2));
+    const dist = Math.sqrt(Math.pow((t2.x - cx), 2) + Math.pow((t2.y - cy), 2));
     if (dist > 0 && dist < buildings.turret.range && t.aoi !== t2.cell.aoi) {
       t2.cell.targeted = true
     }
@@ -654,7 +648,7 @@ const findAllCommandCenters = () => {
   const commandCenters = [];
   map.forEach((col, i) => {
     col.forEach((cell, j) => {
-      if (cell?.building?.commandCenter) {
+      if (cell?.building?.cc) {
         commandCenters.push({ cell, x: i, y: j });
       }
     });
@@ -705,9 +699,9 @@ const getEnemyDirection = () => {
   let ownCC;
   map.forEach((col, i) => {
     col.forEach((cell, j) => {
-      if (cell?.aoi === PLAYERS.HUMAN && cell?.building?.commandCenter) {
+      if (cell?.aoi === PLAYERS.HUMAN && cell?.building?.cc) {
         enemyCC = { cell, x: i, y: j };
-      } else if (cell?.aoi === PLAYERS.CPU && cell?.building?.commandCenter) {
+      } else if (cell?.aoi === PLAYERS.CPU && cell?.building?.cc) {
         ownCC = { cell, x: i, y: j };
       }
     });
@@ -730,7 +724,7 @@ const getCC = () => {
   let cc;
   map.forEach((col, i) => {
     col.forEach((cell, j) => {
-      if (cell?.aoi === PLAYERS.CPU && cell?.building?.commandCenter) {
+      if (cell?.aoi === PLAYERS.CPU && cell?.building?.cc) {
         cc = { cell, x: i, y: j };
       }
     });
@@ -744,10 +738,11 @@ const FSM = {
     INIT: {
       createCC() {
         const refinery = findAvailableCellOfType("helium3");
-        map[refinery.x + 1][refinery.y].building = { commandCenter: { ...buildings.commandCenter }, createdAt: loop };
-        map[refinery.x + 1][refinery.y].building.id = getNewId();
-        map[refinery.x + 1][refinery.y].aoi = PLAYERS.CPU;
-        map[refinery.x + 1][refinery.y].landingProgress = 0;
+        const cell = map[refinery.x + 1][refinery.y];
+        cell.building = { cc: { ...buildings.cc }, createdAt: loop };
+        cell.building.id = getNewId();
+        cell.aoi = PLAYERS.CPU;
+        cell.landingProgress = 0;
         setTimeout(() => {
           const cellPos = getCellCoordinates(refinery.x + 1, refinery.y);
           startParticleSystem(map[refinery.x + 1][refinery.y].building.id, cellPos[0] + 5, cellPos[1] + 10, { r: 220, g: 200, b: 0}, "down", { initTtl: 20, once: true, speed: 0.5, maxParticles: 30 });
@@ -758,10 +753,11 @@ const FSM = {
     CREATE_CC: {
       createMine() {
         const refinery = findAvailableCellOfType("helium3");
-        map[refinery.x][refinery.y].building = { refinery: { ...buildings.refinery }, createdAt: loop };
-        map[refinery.x][refinery.y].building.id = getNewId();
-        map[refinery.x][refinery.y].aoi = PLAYERS.CPU;
-        map[refinery.x][refinery.y].landingProgress = 0;
+        const cell = map[refinery.x][refinery.y];
+        cell.building = { refinery: { ...buildings.refinery }, createdAt: loop };
+        cell.building.id = getNewId();
+        cell.aoi = PLAYERS.CPU;
+        cell.landingProgress = 0;
         setTimeout(() => {
           const cellPos = getCellCoordinates(refinery.x + 1, refinery.y);
           startParticleSystem(map[refinery.x][refinery.y].building.id, cellPos[0] + 5, cellPos[1] + 10, { r: 220, g: 200, b: 0}, "down", { initTtl: 20, once: true, speed: 0.5, maxParticles: 30 });
@@ -777,10 +773,11 @@ const FSM = {
         const ownAvailableSources = heliumSources.filter(h => h.cell.aoi === PLAYERS.CPU && !h.cell.building);
         // if refinery is near
         if (ownAvailableSources.length > 0) {
-          map[ownAvailableSources[0].x][ownAvailableSources[0].y].building = { refinery: { ...buildings.refinery }, createdAt: loop };
-          map[ownAvailableSources[0].x][ownAvailableSources[0].y].building.id = getNewId();
-          map[ownAvailableSources[0].x][ownAvailableSources[0].y].aoi = PLAYERS.CPU;
-          map[ownAvailableSources[0].x][ownAvailableSources[0].y].landingProgress = 0;
+          const cell = map[ownAvailableSources[0].x][ownAvailableSources[0].y];
+          cell.building = { refinery: { ...buildings.refinery }, createdAt: loop };
+          cell.building.id = getNewId();
+          cell.aoi = PLAYERS.CPU;
+          cell.landingProgress = 0;
           setTimeout(() => {
             const cellPos = getCellCoordinates(ownAvailableSources[0].x, ownAvailableSources[0].y);
             startParticleSystem(map[ownAvailableSources[0].x][ownAvailableSources[0].y].building.id, cellPos[0] + 5, cellPos[1] + 10, { r: 220, g: 200, b: 0}, "down", { initTtl: 20, once: true, speed: 0.5, maxParticles: 30 });
@@ -935,13 +932,13 @@ const turretAttack = () => {
             } else if (t2.cell.building?.refinery?.hp < t2.cell.building?.refinery?.totalHP/2) {
               startParticleSystem(map[t2.x][t2.y].building.id, cellPos[0] + 15, cellPos[1] + 10, { r: 255, g: 100, b: 0}, "up", { initSize: 8, initTtl: 15, maxParticles: 5, speed: 0.5 });
             }
-          } else if (t2.cell.building?.commandCenter) {
-            if (t2.cell.building?.commandCenter && t.cell.building?.turret) {
-              t2.cell.building.commandCenter.hp -= t.cell.building.turret.damage;
+          } else if (t2.cell.building?.cc) {
+            if (t2.cell.building?.cc && t.cell.building?.turret) {
+              t2.cell.building.cc.hp -= t.cell.building.turret.damage;
             }
-            if (t2.cell.building?.commandCenter?.hp <= 0) {
+            if (t2.cell.building?.cc?.hp <= 0) {
               destroy(t2);
-            } else if (t2.cell.building?.commandCenter?.hp < t2.cell.building?.commandCenter?.totalHP/2) {
+            } else if (t2.cell.building?.cc?.hp < t2.cell.building?.cc?.totalHP/2) {
               startParticleSystem(map[t2.x][t2.y].building.id, cellPos[0] + 15, cellPos[1] + 10, { r: 255, g: 100, b: 0}, "up", { initSize: 8, initTtl: 15, maxParticles: 5, speed: 0.5 });
             }
           }
@@ -966,9 +963,9 @@ const checkWinLoseConditions = () => {
   if (!pristineMap && FSM.state !== "INIT") {
     const ccs = findAllCommandCenters();
     if (!ccs.find(cc => cc.cell.aoi === PLAYERS.CPU)) { // you destroyed enemy CCs, you win
-      gameState = GAME_STATES.WIN;
+      gameState = STATES.WIN;
     } else if (!ccs.find(cc => cc.cell.aoi === PLAYERS.HUMAN)) { // all your CCs were destroyed, you lose
-      gameState = GAME_STATES.LOSE;
+      gameState = STATES.LOSE;
     }
   }
 };
@@ -1013,25 +1010,25 @@ const getNewId = () => {
 
 const build = buildingName => {
   if (helium3 >= buildings[buildingName].cost && buildings[buildingName].cooldownRemaining === 0) {
-    map[selectedTile[0]][selectedTile[1]].building = { [buildingName]: { ...buildings[buildingName] }, createdAt: loop };
-    map[selectedTile[0]][selectedTile[1]].building.id = getNewId();
-    map[selectedTile[0]][selectedTile[1]].aoi = PLAYERS.HUMAN;
-    map[selectedTile[0]][selectedTile[1]].landingProgress = 0;
+    map[selCell[0]][selCell[1]].building = { [buildingName]: { ...buildings[buildingName] }, createdAt: loop };
+    map[selCell[0]][selCell[1]].building.id = getNewId();
+    map[selCell[0]][selCell[1]].aoi = PLAYERS.HUMAN;
+    map[selCell[0]][selCell[1]].landingProgress = 0;
     helium3 -= buildings[buildingName].cost;
     generateAoI();
     startCooldown(buildingName);
 
     // add building effect
-    const cellX = selectedTile[0];
-    const cellY = selectedTile[1];
-    const cell = map[selectedTile[0]][selectedTile[1]];
+    const cx = selCell[0];
+    const cy = selCell[1];
+    const cell = map[selCell[0]][selCell[1]];
     setTimeout(() => {
-      const cellPos = getCellCoordinates(cellX, cellY);
+      const cellPos = getCellCoordinates(cx, cy);
       startParticleSystem(cell.building.id, cellPos[0] + 5, cellPos[1] + 10, { r: 220, g: 200, b: 0}, "down", { initTtl: 20, once: true, speed: 0.5, maxParticles: 30 });
     }, 900);
     setTimeout(() => {
       if (buildingName === "refinery") {
-        const cellPos = getCellCoordinates(cellX, cellY);
+        const cellPos = getCellCoordinates(cx, cy);
         startParticleSystem(cell.building.id, cellPos[0] + 17, cellPos[1], { r: 0, g: 255, b: 0}, "up", { speed: 0.3 });
       }
     }, 2000);
@@ -1052,9 +1049,9 @@ const destroy = cell => {
 }
 
 const updateSelectedCellInfo = () => {
-    const selection = map[selectedTile[0]][selectedTile[1]];
+    const selection = map[selCell[0]][selCell[1]];
     const { type, building } = selection;
-    if (building?.commandCenter) {
+    if (building?.cc) {
       selectedCellInfo = "Command Center";
     } else if (building?.turret) {
       selectedCellInfo = "Turret";
@@ -1071,59 +1068,59 @@ const updateSelectedCellInfo = () => {
 
 const initInteraction = () => {
   document.addEventListener("keydown", ev => {
-    if (gameState === GAME_STATES.RUNNING) {
+    if (gameState === STATES.RUNNING) {
       switch (ev.keyCode) {
         // arrows
         case 37:
-          selectedTile[0] = selectedTile[0] > 0 ? selectedTile[0] - 1 : 0;
+          selCell[0] = selCell[0] > 0 ? selCell[0] - 1 : 0;
           updateSelectedCellInfo();
           buildButtonPressed = undefined;
           clearTurretRangePreview();
         break;
         case 38:
-          selectedTile[1] = selectedTile[1] > 0 ? selectedTile[1] - 1 : 0;
+          selCell[1] = selCell[1] > 0 ? selCell[1] - 1 : 0;
           updateSelectedCellInfo();
           buildButtonPressed = undefined;
           clearTurretRangePreview();
         break;
         case 39:
-          selectedTile[0] = selectedTile[0] < MAP_WIDTH - 1 ? selectedTile[0] + 1 : MAP_WIDTH - 1;
+          selCell[0] = selCell[0] < MAP_WIDTH - 1 ? selCell[0] + 1 : MAP_WIDTH - 1;
           updateSelectedCellInfo();
           buildButtonPressed = undefined;
           clearTurretRangePreview();
         break;
         case 40:
-          selectedTile[1] = selectedTile[1] < MAP_HEIGHT - 1 ? selectedTile[1] + 1 : MAP_HEIGHT - 1;
+          selCell[1] = selCell[1] < MAP_HEIGHT - 1 ? selCell[1] + 1 : MAP_HEIGHT - 1;
           updateSelectedCellInfo();
           buildButtonPressed = undefined;
           clearTurretRangePreview();
         break;
         case 49: // 1
-        if ((map[selectedTile[0]][selectedTile[1]].aoi !== PLAYERS.CPU || !map[selectedTile[0]][selectedTile[1]].aoi && pristineMap) && map[selectedTile[0]][selectedTile[1]].type !== "mountain") {
-          if (buildButtonPressed === "1" && map[selectedTile[0]][selectedTile[1]].building?.placeholder) {
+        if ((map[selCell[0]][selCell[1]].aoi !== PLAYERS.CPU || !map[selCell[0]][selCell[1]].aoi && pristineMap) && map[selCell[0]][selCell[1]].type !== "mountain") {
+          if (buildButtonPressed === "1" && map[selCell[0]][selCell[1]].building?.placeholder) {
             buildButtonPressed = undefined;
             pristineMap = false;
-            build("commandCenter");
+            build("cc");
           } else {
             buildButtonPressed = "1";
           }
         }
         break;
         case 50: // 2
-        if (map[selectedTile[0]][selectedTile[1]].aoi && map[selectedTile[0]][selectedTile[1]].aoi !== PLAYERS.CPU && map[selectedTile[0]][selectedTile[1]].type !== "mountain") {
-          if (buildButtonPressed === "2" && map[selectedTile[0]][selectedTile[1]].building?.placeholder) {
+        if (map[selCell[0]][selCell[1]].aoi && map[selCell[0]][selCell[1]].aoi !== PLAYERS.CPU && map[selCell[0]][selCell[1]].type !== "mountain") {
+          if (buildButtonPressed === "2" && map[selCell[0]][selCell[1]].building?.placeholder) {
             buildButtonPressed = undefined;
             pristineMap = false;
             build("turret");
           } else {
             buildButtonPressed = "2";
-            generateTurretRangePreview(selectedTile[0], selectedTile[1]);
+            generateTurretRangePreview(selCell[0], selCell[1]);
           }
         }
         break;
         case 51: // 3
-        if (map[selectedTile[0]][selectedTile[1]].aoi && map[selectedTile[0]][selectedTile[1]].aoi !== PLAYERS.CPU && map[selectedTile[0]][selectedTile[1]].type === "helium3") {
-          if (buildButtonPressed === "3" && map[selectedTile[0]][selectedTile[1]].building?.placeholder) {
+        if (map[selCell[0]][selCell[1]].aoi && map[selCell[0]][selCell[1]].aoi !== PLAYERS.CPU && map[selCell[0]][selCell[1]].type === "helium3") {
+          if (buildButtonPressed === "3" && map[selCell[0]][selCell[1]].building?.placeholder) {
             buildButtonPressed = undefined;
             pristineMap = false;
             build("refinery");
@@ -1136,37 +1133,37 @@ const initInteraction = () => {
           buildButtonPressed = undefined;
         break;
         case 46: // Supr
-          destroy({ cell: map[selectedTile[0]][selectedTile[1]] });
+          destroy({ cell: map[selCell[0]][selCell[1]] });
         break;
         case 68: // "d" for debuggin
           debuggingMode = !debuggingMode;
         break;
       }
-    } else if ((gameState === GAME_STATES.WIN || gameState === GAME_STATES.LOSE) && ev.key === "Enter") {
+    } else if ((gameState === STATES.WIN || gameState === STATES.LOSE) && ev.key === "Enter") {
       location.reload(); // reload the game the good old way :)
-    } else if (gameState === GAME_STATES.TITLE) {
+    } else if (gameState === STATES.TITLE) {
       particleSystems = [];
-      gameState = GAME_STATES.DIFFICULTY_SELECTION;
-    } else if (gameState === GAME_STATES.DIFFICULTY_SELECTION) {
+      gameState = STATES.DIFFICULTY_SELECTION;
+    } else if (gameState === STATES.DIFFICULTY_SELECTION) {
       switch(ev.keyCode) {
         case 49:
           gameDifficulty = DIFFICULTY_LEVELS.EASY;
-          gameState = GAME_STATES.RUNNING;
+          gameState = STATES.RUNNING;
           play();
         break;
         case 50:
           gameDifficulty = DIFFICULTY_LEVELS.DIFFICULT;
-          gameState = GAME_STATES.RUNNING;
+          gameState = STATES.RUNNING;
           play();
         break;
         case 51:
           gameDifficulty = DIFFICULTY_LEVELS.EXTREME;
-          gameState = GAME_STATES.RUNNING;
+          gameState = STATES.RUNNING;
           play();
         break;
       }
     }
-    if (gameState === GAME_STATES.RUNNING) {
+    if (gameState === STATES.RUNNING) {
       generateAoI();
     }
   });
@@ -1231,16 +1228,16 @@ const drawDifficultySelection = () => {
 }
 
 const gameLoop = () => {
-  if (gameState === GAME_STATES.TITLE) {
+  if (gameState === STATES.TITLE) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawStars();
     drawTitle();
-  } else if (gameState === GAME_STATES.DIFFICULTY_SELECTION) {
+  } else if (gameState === STATES.DIFFICULTY_SELECTION) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawStars();
     drawDifficultySelection();
   } else {
-    if (loop % 60 === 0 && gameState === GAME_STATES.RUNNING) {
+    if (loop % 60 === 0 && gameState === STATES.RUNNING) {
       gameLogic();
     }
     ctx.clearRect(0, 0, canvas.width, canvas.height);
