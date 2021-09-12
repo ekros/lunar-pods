@@ -14,14 +14,20 @@ const MAP_HEIGHT = 8;
 const HELIUM3_INC = 10;
 const LANDING_OFFSET = -100;
 const GAME_STATES = {
-  RUNNING: 0,
-  WIN: 1,
-  LOSE: 2
+  TITLE: 0,
+  RUNNING: 1,
+  WIN: 2,
+  LOSE: 3
+};
+const DIFFICULTY_LEVELS = {
+  EASY: 4,
+  DIFFICULT: 3,
+  EXTREME: 2
 };
 
 const map = [];
 let loop = 0;
-let IAStepNumber = 0;
+let AIStepNumber = 0;
 let selectedTile = [0, 0];
 let helium3 = 1000;
 const cooldownTimers = {};
@@ -33,8 +39,6 @@ const ctx = canvas.getContext("2d");
 // load graphics
 const tile = new Image(HEX_SIZE, HEX_SIZE);
 tile.src = 'assets/graphics/tile.png';
-const tileDark = new Image(HEX_SIZE, HEX_SIZE);
-tileDark.src = 'assets/graphics/tile-dark.png';
 const mountainTile = new Image(HEX_SIZE, HEX_SIZE);
 mountainTile.src = 'assets/graphics/mountains.png';
 const helium3Tile = new Image(HEX_SIZE, HEX_SIZE);
@@ -64,7 +68,8 @@ let selectionBrightnessInc = 1;
 const stars = [];
 let buildButtonPressed;
 let pristineMap = true;
-let gameState = GAME_STATES.RUNNING;
+let gameState = GAME_STATES.TITLE;
+let gameDifficulty;
 let particleSystems = []; // fire, smoke..
 let selectedCellInfo = "";
 let debuggingMode = false;
@@ -150,7 +155,6 @@ const updateParticleSystems = () => {
   }
   particleSystems.forEach(system => {
     const { initX, initY, initTtl, initSize, maxParticles, color, direction, speed, once } = system.init;
-    // console.log("particles", system.particles.length);
     system.particles.forEach((p, index) => {
       if (!p.dead) {
         let { x, y, size } = p;
@@ -160,7 +164,6 @@ const updateParticleSystems = () => {
         ctx.fillRect(x, y, size, size);
         updatedParticle.ttl -= 1;
         if (updatedParticle.ttl > 0) {
-          // console.log(updatedParticle);
           if (direction === "up") {
             updatedParticle.y -= speed;
             updatedParticle.x += Math.random()*2 - 1;
@@ -460,7 +463,6 @@ const generateAoI = (step = 0, currentAoIScore = 4) => {
     });
   }
 
-  // console.log(pristineMap, map[selectedTile[0]][selectedTile[1]].aoi);
   if (!map[selectedTile[0]][selectedTile[1]].aoi && buildButtonPressed && !pristineMap) {
       map[selectedTile[0]][selectedTile[1]].invalidSelection = true;
     return;
@@ -700,7 +702,6 @@ const FSM = {
   transitions: {
     INIT: {
       createCC() {
-        // console.log("CREATE_CC");
         const refinery = findAvailableCellOfType("helium3");
         map[refinery.x + 1][refinery.y].building = { commandCenter: { ...buildings.commandCenter }, createdAt: loop };
         map[refinery.x + 1][refinery.y].building.id = getNewId();
@@ -710,7 +711,6 @@ const FSM = {
           const cellPos = getCellCoordinates(refinery.x + 1, refinery.y);
           startParticleSystem(map[refinery.x + 1][refinery.y].building.id, cellPos[0] + 5, cellPos[1] + 10, { r: 220, g: 200, b: 0}, "down", { initTtl: 20, once: true, speed: 0.5, maxParticles: 30 });
         }, 900);
-        // console.log("refinery", refinery);
         this.state = "CREATE_CC";
       }
     },
@@ -721,7 +721,6 @@ const FSM = {
         map[refinery.x][refinery.y].building.id = getNewId();
         map[refinery.x][refinery.y].aoi = PLAYERS.CPU;
         map[refinery.x][refinery.y].landingProgress = 0;
-        // console.log("CREATE_MINE");
         setTimeout(() => {
           const cellPos = getCellCoordinates(refinery.x + 1, refinery.y);
           startParticleSystem(map[refinery.x][refinery.y].building.id, cellPos[0] + 5, cellPos[1] + 10, { r: 220, g: 200, b: 0}, "down", { initTtl: 20, once: true, speed: 0.5, maxParticles: 30 });
@@ -734,9 +733,7 @@ const FSM = {
     CREATE_MINE: {
       nextMine() {
         const heliumSources = findHelium3Sources();
-        // console.log("helium", heliumSources);
         const ownAvailableSources = heliumSources.filter(h => h.cell.aoi === PLAYERS.CPU && !h.cell.building);
-        // console.log("ownAvailableSources", ownAvailableSources);
         // if refinery is near
         if (ownAvailableSources.length > 0) {
           map[ownAvailableSources[0].x][ownAvailableSources[0].y].building = { refinery: { ...buildings.refinery }, createdAt: loop };
@@ -793,7 +790,6 @@ const FSM = {
           let processingRandomPos = true;
           while(processingRandomPos) {
             const cell = ownCells[Math.floor(Math.random() * ownCells.length)];
-            // console.log("cell", cell);
             if (cell && cell.cell && !cell.cell.building && cell.cell.type !== "mountain") {
               map[cell.x][cell.y].building = { turret: { ...buildings.turret }, createdAt: loop };
               map[cell.x][cell.y].building.id = getNewId();
@@ -818,15 +814,13 @@ const FSM = {
      if (action) {
          action.call(this);
      } else {
-         // console.log('invalid action');
      }
   }
 };
 
-const IAStep = () => {
-  IAStepNumber += 1;
-  if (IAStepNumber % 3 === 0) {
-    // console.log("IA step", FSM.state);
+const AIStep = () => {
+  AIStepNumber += 1;
+  if (AIStepNumber % gameDifficulty === 0) {
     if (FSM.state === "INIT") {
       FSM.dispatch("createCC");
       generateAoI();
@@ -848,7 +842,6 @@ const turretAttack = () => {
   const turrets = findAllTurrets();
   const refineries = findAllMines();
   const all = turrets.concat(refineries).concat(ccs);
-  // console.log("turrets", turrets);
   let attacked = false;
   // calculate distance with every other building
   turrets.forEach((t, i) => {
@@ -857,8 +850,6 @@ const turretAttack = () => {
       if (!attacked) {
         const dist = Math.sqrt(Math.pow((t2.x - t.x), 2) + Math.pow((t2.y - t.y), 2));
         if (dist > 0 && dist < buildings.turret.range && t.cell.aoi !== t2.cell.aoi) {
-          // console.log("dist", dist);
-          // console.log("t2", t2, "t", t);
           if (t2.cell.building?.turret) {
             if (t2.cell.building?.turret && t.cell.building?.turret) {
               t2.cell.building.turret.hp -= t.cell.building.turret.damage;
@@ -899,9 +890,8 @@ const turretAttack = () => {
 };
 
 const checkWinLoseConditions = () => {
-  if (!pristineMap) {
+  if (!pristineMap && FSM.state !== "INIT") {
     const ccs = findAllCommandCenters();
-    // console.log(ccs);
     if (!ccs.find(cc => cc.cell.aoi === PLAYERS.CPU)) { // you destroyed enemy CCs, you win
       gameState = GAME_STATES.WIN;
     } else if (!ccs.find(cc => cc.cell.aoi === PLAYERS.HUMAN)) { // all your CCs were destroyed, you lose
@@ -912,7 +902,7 @@ const checkWinLoseConditions = () => {
 
 const gameLogic = () => {
   gatherResources();
-  IAStep();
+  AIStep();
   turretAttack();
   checkWinLoseConditions();
 };
@@ -928,23 +918,6 @@ const updateLandingProgress = () => {
     });
   });
 }
-
-const gameLoop = () => {
-  if (loop % 60 === 0 && gameState === GAME_STATES.RUNNING) {
-    gameLogic();
-  }
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawStars();
-  drawMap();
-  drawUI();
-  updateLandingProgress();
-  updateParticleSystems();
-  if (loop % 200 === 0) {
-    purgeEndedParticleSystems();
-  }
-  loop++;
-  window.requestAnimationFrame(gameLoop);
-};
 
 const startCooldown = buildingName => {
   buildings[buildingName].cooldownRemaining = buildings[buildingName].cooldown;
@@ -993,7 +966,6 @@ const build = buildingName => {
 }
 
 const destroy = cell => {
-  // console.log("cell", cell);
   const systems = particleSystems.filter(system => system.init.id === cell.cell.building.id);
   if (systems) {
     systems.forEach((s) => {
@@ -1008,7 +980,6 @@ const destroy = cell => {
 
 const updateSelectedCellInfo = () => {
     const selection = map[selectedTile[0]][selectedTile[1]];
-    console.log("selec", selection);
     const { type, building } = selection;
     if (building?.commandCenter) {
       selectedCellInfo = "Command Center";
@@ -1027,7 +998,6 @@ const updateSelectedCellInfo = () => {
 
 const initInteraction = () => {
   document.addEventListener("keydown", ev => {
-    // console.log(ev.keyCode);
     if (gameState === GAME_STATES.RUNNING) {
       switch (ev.keyCode) {
         // arrows
@@ -1094,18 +1064,131 @@ const initInteraction = () => {
           debuggingMode = !debuggingMode;
         break;
       }
-    } else if (ev.key === "Enter") {
+    } else if ((gameState === GAME_STATES.WIN || gameState === GAME_STATES.LOSE) && ev.key === "Enter") {
       location.reload(); // reload the game the good old way :)
+    } else if (gameState === GAME_STATES.TITLE) {
+      particleSystems = [];
+      gameState = GAME_STATES.DIFFICULTY_SELECTION;
+    } else if (gameState === GAME_STATES.DIFFICULTY_SELECTION) {
+      switch(ev.keyCode) {
+        case 49:
+          gameDifficulty = DIFFICULTY_LEVELS.EASY;
+          gameState = GAME_STATES.RUNNING;
+          play();
+        break;
+        case 50:
+          gameDifficulty = DIFFICULTY_LEVELS.DIFFICULT;
+          gameState = GAME_STATES.RUNNING;
+          play();
+        break;
+        case 51:
+          gameDifficulty = DIFFICULTY_LEVELS.EXTREME;
+          gameState = GAME_STATES.RUNNING;
+          play();
+        break;
+      }
     }
-    generateAoI();
+    if (gameState === GAME_STATES.RUNNING) {
+      generateAoI();
+    }
   });
 };
 
+const drawTitle = () => {
+  // upper section
+  ctx.fillStyle = "#333333";
+  ctx.fillRect(0, 50, canvas.width, 250);
+  ctx.fillStyle = "black";
+  ctx.font = "80px Arial";
+  ctx.fillText("LUNAR", 300, 150);
+  ctx.fillText("PODS", 400, 250);
+  ctx.drawImage(podTile, 100, 200);
+  ctx.drawImage(podTileCpu, 200, 200);
+  ctx.fillStyle = "white";
+  ctx.font = "14px Arial";
+  ctx.fillText("by Eric Ros (@ericrosbh) for the 2021 js13kgames", 460, 290);
+  // bottom section
+  ctx.strokeStyle = "white";
+  ctx.fillStyle = "rgba(50, 50, 50, 0.8)";
+  ctx.strokeRect(10, 350, canvas.width - 20, 240);
+  ctx.fillRect(10, 350, canvas.width - 20, 240);
+  // Introduction
+  ctx.fillStyle = "white";
+  ctx.fillText("The year is 2050. Humanity is desperate for clean energy. The new fusion reactors are promising, but they are fueled with", 20, 370);
+  ctx.fillText("helium-3.. very scarce on Earth but not on the Moon. Only the mightiest will claim the precious resource...", 20, 390);
+  ctx.fillText("Use arrows to change your selection and press 1, 2, or 3 to build.", 20, 430);
+  ctx.fillText("The goal is to destroy the enemy command center.", 20, 450);
+  ctx.fillText("Command centers do nothing, but they generate a large territory.", 20, 470);
+  ctx.fillText("Inside your territory, you can build turrets, to attack enemy buildings, and refineries, to increase your helium-3 reserves.", 20, 490);
+  ctx.fillText("You cannot build in mountains. A part from that, they do not have any effect in the game.", 20, 510);
+  ctx.fillText("Press any key to start", canvas.width - 150, canvas.height - 20);
+};
+
+const drawDifficultySelection = () => {
+  ctx.strokeStyle = "white";
+  ctx.fillStyle = "rgba(50, 50, 50, 0.8)";
+  const baseX = 300;
+  const baseY = 250;
+  ctx.strokeRect(baseX, baseY, 200, 40);
+  ctx.fillRect(baseX, baseY, 200, 40);
+  ctx.strokeRect(baseX, baseY + 60, 200, 40);
+  ctx.fillRect(baseX, baseY + 60, 200, 40);
+  ctx.strokeRect(baseX, baseY + 120, 200, 40);
+  ctx.fillRect(baseX, baseY + 120, 200, 40);
+  ctx.fillStyle = "gray";
+  ctx.fillRect(baseX + 10, baseY + 10, 20, 20);
+  ctx.fillRect(baseX + 10, baseY + 70, 20, 20);
+  ctx.fillRect(baseX + 10, baseY + 130, 20, 20);
+  // text
+  ctx.fillStyle = "white";
+  ctx.fillText("Choose difficulty level:", baseX, baseY - 30);
+  ctx.fillStyle = "black";
+  ctx.fillText("1", baseX + 16, baseY + 25);
+  ctx.fillText("2", baseX + 16, baseY + 85);
+  ctx.fillText("3", baseX + 16, baseY + 145);
+  ctx.fillStyle = "white";
+  ctx.fillText("Easy", baseX + 40, baseY + 25);
+  ctx.fillText("Hard", baseX + 40, baseY + 85);
+  ctx.fillText("Extreme", baseX + 40, baseY + 145);
+}
+
+const gameLoop = () => {
+  if (gameState === GAME_STATES.TITLE) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawStars();
+    drawTitle();
+  } else if (gameState === GAME_STATES.DIFFICULTY_SELECTION) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawStars();
+    drawDifficultySelection();
+  } else {
+    if (loop % 60 === 0 && gameState === GAME_STATES.RUNNING) {
+      gameLogic();
+    }
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawStars();
+    drawMap();
+    drawUI();
+    updateLandingProgress();
+  }
+  updateParticleSystems();
+  if (loop % 200 === 0) {
+    purgeEndedParticleSystems();
+  }
+  loop++;
+  window.requestAnimationFrame(gameLoop);
+};
+
 const initGame = () => {
-  generateMap(MAP_WIDTH, MAP_HEIGHT);
   generateStarBackground(200);
+  startParticleSystem(99990, 115, 230, { r: 220, g: 200, b: 0}, "down", { initTtl: 50, speed: 0.5, maxParticles: 30 });
+  startParticleSystem(99991, 215, 230, { r: 220, g: 200, b: 0}, "down", { initTtl: 50, speed: 0.5, maxParticles: 30 });
   initInteraction();
   window.requestAnimationFrame(gameLoop);
+};
+
+const play = () => {
+  generateMap(MAP_WIDTH, MAP_HEIGHT);
 };
 
 window.addEventListener("load", () => {
