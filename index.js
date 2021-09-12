@@ -4,8 +4,7 @@ const HORIZ_HEX_OFFSET = -10;
 const HORIZ_MAP_OFFSET = 30;
 const VERT_MAP_OFFSET = 40;
 const BUILDING_OFFSET = 40;
-const HELIUM3_IN_MAP = 5;
-// const MAX_HELIUM3_IN_MAP = 5; TODO: add max?
+const HELIUM3_IN_MAP = 6;
 const MOUNTAIN_TILES = 20;
 const SEL_BRIGHTNESS_MIN = 80;
 const SEL_BRIGHTNESS_MAX = 120;
@@ -151,56 +150,56 @@ const startParticleSystem = (id, initX, initY, color = {r: 255, g: 255, b: 255},
 };
 
 const updateParticleSystems = () => {
-  if (particleSystems.length > 1) {
-  }
-  particleSystems.forEach(system => {
-    const { initX, initY, initTtl, initSize, maxParticles, color, direction, speed, once } = system.init;
-    system.particles.forEach((p, index) => {
-      if (!p.dead) {
-        let { x, y, size } = p;
-        ctx.clearRect(x, y, size, size);
-        let updatedParticle = { ...p };
-        ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${updatedParticle.opacity})`;
-        ctx.fillRect(x, y, size, size);
-        updatedParticle.ttl -= 1;
-        if (updatedParticle.ttl > 0) {
-          if (direction === "up") {
-            updatedParticle.y -= speed;
-            updatedParticle.x += Math.random()*2 - 1;
-          } else if (direction === "down") {
-            updatedParticle.y -= -speed;
-            updatedParticle.x += Math.random()*2 - 1;
-          } else if (direction === "left") {
-            updatedParticle.y -= Math.random()*2 - 1;
-            updatedParticle.x += -speed;
-          } else if (direction === "right") {
-            updatedParticle.y -= Math.random()*2 - 1;
-            updatedParticle.x += speed;
+  if (gameState === GAME_STATES.RUNNING) {
+    particleSystems.forEach(system => {
+      const { initX, initY, initTtl, initSize, maxParticles, color, direction, speed, once } = system.init;
+      system.particles.forEach((p, index) => {
+        if (!p.dead) {
+          let { x, y, size } = p;
+          ctx.clearRect(x, y, size, size);
+          let updatedParticle = { ...p };
+          ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${updatedParticle.opacity})`;
+          ctx.fillRect(x, y, size, size);
+          updatedParticle.ttl -= 1;
+          if (updatedParticle.ttl > 0) {
+            if (direction === "up") {
+              updatedParticle.y -= speed;
+              updatedParticle.x += Math.random()*2 - 1;
+            } else if (direction === "down") {
+              updatedParticle.y -= -speed;
+              updatedParticle.x += Math.random()*2 - 1;
+            } else if (direction === "left") {
+              updatedParticle.y -= Math.random()*2 - 1;
+              updatedParticle.x += -speed;
+            } else if (direction === "right") {
+              updatedParticle.y -= Math.random()*2 - 1;
+              updatedParticle.x += speed;
+            }
+            updatedParticle.opacity -= 1/initTtl;
+            updatedParticle.size -= initSize/initTtl;
+          } else if (once) {
+            updatedParticle.opacity = 0;
+            updatedParticle.dead = true;
+          } else {
+            updatedParticle.x = initX;
+            updatedParticle.y = initY;
+            updatedParticle.ttl = initTtl + Math.floor(Math.random()*20);
+            updatedParticle.opacity = 1;
+            updatedParticle.size = initSize;
           }
-          updatedParticle.opacity -= 1/initTtl;
-          updatedParticle.size -= initSize/initTtl;
-        } else if (once) {
-          updatedParticle.opacity = 0;
-          updatedParticle.dead = true;
-        } else {
-          updatedParticle.x = initX;
-          updatedParticle.y = initY;
-          updatedParticle.ttl = initTtl + Math.floor(Math.random()*20);
-          updatedParticle.opacity = 1;
-          updatedParticle.size = initSize;
+          system.particles[index] = updatedParticle;
         }
-        system.particles[index] = updatedParticle;
+      });
+      if (system.particles.length < maxParticles) {
+        system.particles.push({
+          x: initX + Math.random() * 10,
+          y: initY,
+          opacity: 1,
+          size: 5
+        });
       }
     });
-    if (system.particles.length < maxParticles) {
-      system.particles.push({
-        x: initX + Math.random() * 10,
-        y: initY,
-        opacity: 1,
-        size: 5
-      });
-    }
-  });
+  }
 };
 
 const purgeEndedParticleSystems = () => {
@@ -248,6 +247,8 @@ const drawMap = () => {
           }
         } else if (cell.aoi === PLAYERS.SELECTION) {
           ctx.filter = `sepia(1) hue-rotate(40deg) saturate(200%)`;
+        } else if (cell.targeted) {
+          ctx.filter = `sepia(1) hue-rotate(-40deg) saturate(200%)`;
         } else {
           ctx.filter = "none";
         }
@@ -283,6 +284,7 @@ const drawMap = () => {
           if (cell && cell.type === "mountain") {
             ctx.drawImage(mountainTile, HEX_SIZE * i + (hOffset * i) + HORIZ_MAP_OFFSET, HEX_SIZE * j + VERT_MAP_OFFSET);
           }
+
         }
         // buildings
         if (cell.building) {
@@ -540,6 +542,33 @@ const generateAoI = (step = 0, currentAoIScore = 4) => {
   }
 };
 
+const clearTurretRangePreview = () => {
+  map.forEach((col, i) => {
+    col.forEach((cell, j) => {
+      if (cell.targeted) {
+        delete(cell.targeted);
+      }
+    });
+  });
+};
+
+const generateTurretRangePreview = (cellX, cellY) => {
+  console.log("cell", cellX, cellY);
+  const ccs = findAllCommandCenters();
+  const refineries = findAllMines();
+  const turrets = findAllTurrets();
+  const all = turrets.concat(refineries).concat(ccs);
+  const t = map[cellX][cellY];
+  console.log("t", t);
+  // calculate distance with every other building
+  all.forEach((t2, j) => {
+    const dist = Math.sqrt(Math.pow((t2.x - cellX), 2) + Math.pow((t2.y - cellY), 2));
+    if (dist > 0 && dist < buildings.turret.range && t.aoi !== t2.cell.aoi) {
+      t2.cell.targeted = true
+    }
+  });
+};
+
 const generateStarBackground = numberOfStars => {
     while (numberOfStars--) {
       const x = Math.floor(Math.random() * 800);
@@ -763,8 +792,9 @@ const FSM = {
         if (direction === DIRECTION.LEFT) {
           let processingRandomPos = true;
           const leftCells = ownCells.filter(t => t.x < cc.x);
+          let cell;
           while(processingRandomPos) {
-            const cell = leftCells[Math.floor(Math.random() * leftCells.length)];
+            cell = leftCells[Math.floor(Math.random() * leftCells.length)];
             if (cell && cell.cell && !cell.cell.building && cell.cell.type !== "mountain") {
               map[cell.x][cell.y].building = { turret: { ...buildings.turret }, createdAt: loop };
               map[cell.x][cell.y].building.id = getNewId();
@@ -777,7 +807,7 @@ const FSM = {
           let processingRandomPos = true;
           const rightCells = ownCells.filter(t => t.x > cc.x || t.x === cc.x);
           while(processingRandomPos) {
-            const cell = rightCells[Math.floor(Math.random() * rightCells.length)];
+            cell = rightCells[Math.floor(Math.random() * rightCells.length)];
             if (cell && cell.cell && !cell.cell.building && cell.cell.type !== "mountain") {
               map[cell.x][cell.y].building = { turret: { ...buildings.turret }, createdAt: loop };
               map[cell.x][cell.y].building.id = getNewId();
@@ -789,7 +819,7 @@ const FSM = {
         } else {
           let processingRandomPos = true;
           while(processingRandomPos) {
-            const cell = ownCells[Math.floor(Math.random() * ownCells.length)];
+            cell = ownCells[Math.floor(Math.random() * ownCells.length)];
             if (cell && cell.cell && !cell.cell.building && cell.cell.type !== "mountain") {
               map[cell.x][cell.y].building = { turret: { ...buildings.turret }, createdAt: loop };
               map[cell.x][cell.y].building.id = getNewId();
@@ -1002,24 +1032,28 @@ const initInteraction = () => {
       switch (ev.keyCode) {
         // arrows
         case 37:
-        selectedTile[0] = selectedTile[0] > 0 ? selectedTile[0] - 1 : 0;
-        updateSelectedCellInfo();
-        buildButtonPressed = undefined;
+          selectedTile[0] = selectedTile[0] > 0 ? selectedTile[0] - 1 : 0;
+          updateSelectedCellInfo();
+          buildButtonPressed = undefined;
+          clearTurretRangePreview();
         break;
         case 38:
-        selectedTile[1] = selectedTile[1] > 0 ? selectedTile[1] - 1 : 0;
-        updateSelectedCellInfo();
-        buildButtonPressed = undefined;
+          selectedTile[1] = selectedTile[1] > 0 ? selectedTile[1] - 1 : 0;
+          updateSelectedCellInfo();
+          buildButtonPressed = undefined;
+          clearTurretRangePreview();
         break;
         case 39:
-        selectedTile[0] = selectedTile[0] < MAP_WIDTH - 1 ? selectedTile[0] + 1 : MAP_WIDTH - 1;
-        updateSelectedCellInfo();
-        buildButtonPressed = undefined;
+          selectedTile[0] = selectedTile[0] < MAP_WIDTH - 1 ? selectedTile[0] + 1 : MAP_WIDTH - 1;
+          updateSelectedCellInfo();
+          buildButtonPressed = undefined;
+          clearTurretRangePreview();
         break;
         case 40:
-        selectedTile[1] = selectedTile[1] < MAP_HEIGHT - 1 ? selectedTile[1] + 1 : MAP_HEIGHT - 1;
-        updateSelectedCellInfo();
-        buildButtonPressed = undefined;
+          selectedTile[1] = selectedTile[1] < MAP_HEIGHT - 1 ? selectedTile[1] + 1 : MAP_HEIGHT - 1;
+          updateSelectedCellInfo();
+          buildButtonPressed = undefined;
+          clearTurretRangePreview();
         break;
         case 49: // 1
         if ((map[selectedTile[0]][selectedTile[1]].aoi !== PLAYERS.CPU || !map[selectedTile[0]][selectedTile[1]].aoi && pristineMap) && map[selectedTile[0]][selectedTile[1]].type !== "mountain") {
@@ -1040,6 +1074,7 @@ const initInteraction = () => {
             build("turret");
           } else {
             buildButtonPressed = "2";
+            generateTurretRangePreview(selectedTile[0], selectedTile[1]);
           }
         }
         break;
