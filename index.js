@@ -1100,7 +1100,7 @@ const initInteraction = () => {
         break;
         case 49: // 1
         if ((map[selectedTile[0]][selectedTile[1]].aoi !== PLAYERS.CPU || !map[selectedTile[0]][selectedTile[1]].aoi && pristineMap) && map[selectedTile[0]][selectedTile[1]].type !== "mountain") {
-          if (buildButtonPressed === "1") {
+          if (buildButtonPressed === "1" && map[selectedTile[0]][selectedTile[1]].building?.placeholder) {
             buildButtonPressed = undefined;
             pristineMap = false;
             build("commandCenter");
@@ -1111,7 +1111,7 @@ const initInteraction = () => {
         break;
         case 50: // 2
         if (map[selectedTile[0]][selectedTile[1]].aoi !== PLAYERS.CPU && map[selectedTile[0]][selectedTile[1]].type !== "mountain") {
-          if (buildButtonPressed === "2") {
+          if (buildButtonPressed === "2" && map[selectedTile[0]][selectedTile[1]].building?.placeholder) {
             buildButtonPressed = undefined;
             pristineMap = false;
             build("turret");
@@ -1123,7 +1123,7 @@ const initInteraction = () => {
         break;
         case 51: // 3
         if (map[selectedTile[0]][selectedTile[1]].aoi !== PLAYERS.CPU && map[selectedTile[0]][selectedTile[1]].type === "helium3") {
-          if (buildButtonPressed === "3") {
+          if (buildButtonPressed === "3" && map[selectedTile[0]][selectedTile[1]].building?.placeholder) {
             buildButtonPressed = undefined;
             pristineMap = false;
             build("refinery");
