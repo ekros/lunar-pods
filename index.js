@@ -18,7 +18,7 @@ const STATES = { // GAME STATES
   WIN: 2,
   LOSE: 3
 };
-const DIFFICULTY_LEVELS = {
+const DIFFICULTY = {
   EASY: 4,
   DIFFICULT: 3,
   EXTREME: 2
@@ -59,10 +59,10 @@ let hOffset = 0;
 let selectionBrightness = SEL_BRIGHTNESS_MIN;
 let selectionBrightnessInc = 1;
 const stars = [];
-let buildButtonPressed;
+let buildBtnPressed;
 let pristineMap = true;
-let gameState = STATES.TITLE;
-let gameDifficulty;
+let state = STATES.TITLE;
+let difficulty;
 let particleSystems = []; // fire, smoke..
 let selectedCellInfo = "";
 let debuggingMode = false;
@@ -144,7 +144,7 @@ const startParticleSystem = (id, initX, initY, color = {r: 255, g: 255, b: 255},
 };
 
 const updateParticleSystems = () => {
-  if (gameState === STATES.RUNNING || gameState === STATES.TITLE) {
+  if (state === STATES.RUNNING || state === STATES.TITLE) {
     particleSystems.forEach(system => {
       const { initX, initY, initTtl, initSize, maxParticles, color, direction, speed, once } = system.init;
       system.particles.forEach((p, index) => {
@@ -370,7 +370,7 @@ const canBuild = buildingName => {
 };
 
 const drawUI = () => {
-  if (gameState === STATES.RUNNING) {
+  if (state === STATES.RUNNING) {
     const baseX = 60;
     const { cooldown: ccCooldown, cooldownRemaining: ccCooldownRemaining, cost: ccCost } = buildings.cc;
     const { cooldown: turretCooldown, cooldownRemaining: turretCooldownRemaining, cost: turretCost } = buildings.turret;
@@ -384,15 +384,15 @@ const drawUI = () => {
     ctx.strokeStyle = "gray";
     // command center
     ctx.strokeRect(baseX, 490, 240, 30);
-    ctx.fillStyle = buildButtonPressed === "1" && canBuild("cc") ? "#77aa33" : "gray";
+    ctx.fillStyle = buildBtnPressed === "1" && canBuild("cc") ? "#77aa33" : "gray";
     ctx.fillRect(baseX + 5, 495, 20, 20);
     // turret
     ctx.strokeRect(baseX, 520, 240, 30);
-    ctx.fillStyle = buildButtonPressed === "2" && canBuild("turret") ? "#77aa33" : "gray";
+    ctx.fillStyle = buildBtnPressed === "2" && canBuild("turret") ? "#77aa33" : "gray";
     ctx.fillRect(baseX + 5, 525, 20, 20);
     // refinery
     ctx.strokeRect(baseX, 550, 240, 30);
-    ctx.fillStyle = buildButtonPressed === "3" && canBuild("refinery") ? "#77aa33" : "gray";
+    ctx.fillStyle = buildBtnPressed === "3" && canBuild("refinery") ? "#77aa33" : "gray";
     ctx.fillRect(baseX + 5, 555, 20, 20);
     // texts
     ctx.fillStyle = "black";
@@ -407,12 +407,13 @@ const drawUI = () => {
     ctx.fillStyle = refineryCooldownRemaining > 0 || helium3 < refineryCost ? "gray" : "white";
     ctx.fillText(`Mine (Cost: ${buildings.refinery.cost})`, baseX + 30, 570);
     // confirmation messages
-    if (buildButtonPressed === "1" && canBuild("cc")) {
-      ctx.fillText("Press again to confirm", baseX + 250, 510);
-    } else if (buildButtonPressed === "2" && canBuild("turret")) {
-      ctx.fillText("Press again to confirm", baseX + 250, 540);
-    } else if (buildButtonPressed === "3" && canBuild("refinery")) {
-      ctx.fillText("Press again to confirm", baseX + 250, 570);
+    const msg = "Press again to confirm";
+    if (buildBtnPressed === "1" && canBuild("cc")) {
+      ctx.fillText(msg, baseX + 250, 510);
+    } else if (buildBtnPressed === "2" && canBuild("turret")) {
+      ctx.fillText(msg, baseX + 250, 540);
+    } else if (buildBtnPressed === "3" && canBuild("refinery")) {
+      ctx.fillText(msg, baseX + 250, 570);
     }
     // helium reserve
     ctx.fillStyle = "white";
@@ -429,13 +430,13 @@ const drawUI = () => {
       ctx.fillText(selectedCellInfo, 630, 500);
     }
 
-  } else if (gameState === STATES.WIN) {
+  } else if (state === STATES.WIN) {
     ctx.fillStyle = "white";
     ctx.font = "16px Arial";
     ctx.fillText("YOU WIN!", 110, 510);
     ctx.font = "14px Arial";
     ctx.fillText("Press Enter to restart the game", 310, 510);
-  } else if (gameState === STATES.LOSE) {
+  } else if (state === STATES.LOSE) {
     ctx.fillStyle = "white";
     ctx.font = "16px Arial";
     ctx.fillText("YOU LOSE!", 110, 510);
@@ -471,18 +472,17 @@ const generateAoI = (step = 0, currentAoIScore = 4) => {
     });
   }
 
-  if (!map[selCell[0]][selCell[1]].aoi && buildButtonPressed && !pristineMap) {
+  if (!map[selCell[0]][selCell[1]].aoi && buildBtnPressed && !pristineMap) {
       map[selCell[0]][selCell[1]].invalidSelection = true;
     return;
   }
 
-
   if (!map[selCell[0]][selCell[1]].building) {
-    if (buildButtonPressed === "1") {
+    if (buildBtnPressed === "1") {
         map[selCell[0]][selCell[1]].building = { placeholder: { type: "placeholder", area: buildings.cc.area } };
-    } else if (buildButtonPressed === "2") {
+    } else if (buildBtnPressed === "2") {
       map[selCell[0]][selCell[1]].building = { placeholder: { type: "placeholder", area: buildings.turret.area } };
-    } else if (buildButtonPressed === "3") {
+    } else if (buildBtnPressed === "3") {
       map[selCell[0]][selCell[1]].building = { placeholder: { type: "placeholder", area: buildings.refinery.area } };
     }
   }
@@ -559,13 +559,11 @@ const clearTurretRangePreview = () => {
 };
 
 const generateTurretRangePreview = (cx, cy) => {
-  console.log("cell", cx, cy);
   const ccs = findAllCommandCenters();
   const refineries = findAllMines();
   const turrets = findAllTurrets();
   const all = turrets.concat(refineries).concat(ccs);
   const t = map[cx][cy];
-  console.log("t", t);
   // calculate distance with every other building
   all.forEach((t2, j) => {
     const dist = Math.sqrt(Math.pow((t2.x - cx), 2) + Math.pow((t2.y - cy), 2));
@@ -859,7 +857,7 @@ const FSM = {
 
 const AIStep = () => {
   AIStepNumber += 1;
-  if (AIStepNumber % gameDifficulty === 0) {
+  if (AIStepNumber % difficulty === 0) {
     if (FSM.state === "INIT") {
       FSM.dispatch("createCC");
       generateAoI();
@@ -963,9 +961,9 @@ const checkWinLoseConditions = () => {
   if (!pristineMap && FSM.state !== "INIT") {
     const ccs = findAllCommandCenters();
     if (!ccs.find(cc => cc.cell.aoi === PLAYERS.CPU)) { // you destroyed enemy CCs, you win
-      gameState = STATES.WIN;
+      state = STATES.WIN;
     } else if (!ccs.find(cc => cc.cell.aoi === PLAYERS.HUMAN)) { // all your CCs were destroyed, you lose
-      gameState = STATES.LOSE;
+      state = STATES.LOSE;
     }
   }
 };
@@ -1068,69 +1066,69 @@ const updateSelectedCellInfo = () => {
 
 const initInteraction = () => {
   document.addEventListener("keydown", ev => {
-    if (gameState === STATES.RUNNING) {
+    if (state === STATES.RUNNING) {
       switch (ev.keyCode) {
         // arrows
         case 37:
           selCell[0] = selCell[0] > 0 ? selCell[0] - 1 : 0;
           updateSelectedCellInfo();
-          buildButtonPressed = undefined;
+          buildBtnPressed = undefined;
           clearTurretRangePreview();
         break;
         case 38:
           selCell[1] = selCell[1] > 0 ? selCell[1] - 1 : 0;
           updateSelectedCellInfo();
-          buildButtonPressed = undefined;
+          buildBtnPressed = undefined;
           clearTurretRangePreview();
         break;
         case 39:
           selCell[0] = selCell[0] < MAP_WIDTH - 1 ? selCell[0] + 1 : MAP_WIDTH - 1;
           updateSelectedCellInfo();
-          buildButtonPressed = undefined;
+          buildBtnPressed = undefined;
           clearTurretRangePreview();
         break;
         case 40:
           selCell[1] = selCell[1] < MAP_HEIGHT - 1 ? selCell[1] + 1 : MAP_HEIGHT - 1;
           updateSelectedCellInfo();
-          buildButtonPressed = undefined;
+          buildBtnPressed = undefined;
           clearTurretRangePreview();
         break;
         case 49: // 1
         if ((map[selCell[0]][selCell[1]].aoi !== PLAYERS.CPU || !map[selCell[0]][selCell[1]].aoi && pristineMap) && map[selCell[0]][selCell[1]].type !== "mountain") {
-          if (buildButtonPressed === "1" && map[selCell[0]][selCell[1]].building?.placeholder) {
-            buildButtonPressed = undefined;
+          if (buildBtnPressed === "1" && map[selCell[0]][selCell[1]].building?.placeholder) {
+            buildBtnPressed = undefined;
             pristineMap = false;
             build("cc");
           } else {
-            buildButtonPressed = "1";
+            buildBtnPressed = "1";
           }
         }
         break;
         case 50: // 2
         if (map[selCell[0]][selCell[1]].aoi && map[selCell[0]][selCell[1]].aoi !== PLAYERS.CPU && map[selCell[0]][selCell[1]].type !== "mountain") {
-          if (buildButtonPressed === "2" && map[selCell[0]][selCell[1]].building?.placeholder) {
-            buildButtonPressed = undefined;
+          if (buildBtnPressed === "2" && map[selCell[0]][selCell[1]].building?.placeholder) {
+            buildBtnPressed = undefined;
             pristineMap = false;
             build("turret");
           } else {
-            buildButtonPressed = "2";
+            buildBtnPressed = "2";
             generateTurretRangePreview(selCell[0], selCell[1]);
           }
         }
         break;
         case 51: // 3
         if (map[selCell[0]][selCell[1]].aoi && map[selCell[0]][selCell[1]].aoi !== PLAYERS.CPU && map[selCell[0]][selCell[1]].type === "helium3") {
-          if (buildButtonPressed === "3" && map[selCell[0]][selCell[1]].building?.placeholder) {
-            buildButtonPressed = undefined;
+          if (buildBtnPressed === "3" && map[selCell[0]][selCell[1]].building?.placeholder) {
+            buildBtnPressed = undefined;
             pristineMap = false;
             build("refinery");
           } else {
-            buildButtonPressed = "3";
+            buildBtnPressed = "3";
           }
         }
         break;
         case 27: // ESC
-          buildButtonPressed = undefined;
+          buildBtnPressed = undefined;
         break;
         case 46: // Supr
           destroy({ cell: map[selCell[0]][selCell[1]] });
@@ -1139,31 +1137,31 @@ const initInteraction = () => {
           debuggingMode = !debuggingMode;
         break;
       }
-    } else if ((gameState === STATES.WIN || gameState === STATES.LOSE) && ev.key === "Enter") {
+    } else if ((state === STATES.WIN || state === STATES.LOSE) && ev.key === "Enter") {
       location.reload(); // reload the game the good old way :)
-    } else if (gameState === STATES.TITLE) {
+    } else if (state === STATES.TITLE) {
       particleSystems = [];
-      gameState = STATES.DIFFICULTY_SELECTION;
-    } else if (gameState === STATES.DIFFICULTY_SELECTION) {
+      state = STATES.DIFFICULTY_SELECTION;
+    } else if (state === STATES.DIFFICULTY_SELECTION) {
       switch(ev.keyCode) {
         case 49:
-          gameDifficulty = DIFFICULTY_LEVELS.EASY;
-          gameState = STATES.RUNNING;
+          difficulty = DIFFICULTY.EASY;
+          state = STATES.RUNNING;
           play();
         break;
         case 50:
-          gameDifficulty = DIFFICULTY_LEVELS.DIFFICULT;
-          gameState = STATES.RUNNING;
+          difficulty = DIFFICULTY.DIFFICULT;
+          state = STATES.RUNNING;
           play();
         break;
         case 51:
-          gameDifficulty = DIFFICULTY_LEVELS.EXTREME;
-          gameState = STATES.RUNNING;
+          difficulty = DIFFICULTY.EXTREME;
+          state = STATES.RUNNING;
           play();
         break;
       }
     }
-    if (gameState === STATES.RUNNING) {
+    if (state === STATES.RUNNING) {
       generateAoI();
     }
   });
@@ -1228,16 +1226,16 @@ const drawDifficultySelection = () => {
 }
 
 const gameLoop = () => {
-  if (gameState === STATES.TITLE) {
+  if (state === STATES.TITLE) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawStars();
     drawTitle();
-  } else if (gameState === STATES.DIFFICULTY_SELECTION) {
+  } else if (state === STATES.DIFFICULTY_SELECTION) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawStars();
     drawDifficultySelection();
   } else {
-    if (loop % 60 === 0 && gameState === STATES.RUNNING) {
+    if (loop % 60 === 0 && state === STATES.RUNNING) {
       gameLogic();
     }
     ctx.clearRect(0, 0, canvas.width, canvas.height);
