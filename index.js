@@ -144,7 +144,7 @@ const startParticleSystem = (id, initX, initY, color = {r: 255, g: 255, b: 255},
 };
 
 const updateParticleSystems = () => {
-  if (gameState === STATES.RUNNING) {
+  if (gameState === STATES.RUNNING || gameState === STATES.TITLE) {
     particleSystems.forEach(system => {
       const { initX, initY, initTtl, initSize, maxParticles, color, direction, speed, once } = system.init;
       system.particles.forEach((p, index) => {
