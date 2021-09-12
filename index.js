@@ -230,7 +230,7 @@ const drawStars = () => {
 const drawHP = (cellX, cellY, hOffset, hpPercentage, isEvenColumn) => {
   ctx.fillStyle = "black";
   ctx.fillRect(HEX_SIZE * cellX + (hOffset * cellX) + BUILDING_OFFSET, HEX_SIZE * cellY + (isEvenColumn ? VERT_HEX_OFFSET : 0) + VERT_MAP_OFFSET, 32, 4);
-  ctx.fillStyle = "green";
+  ctx.fillStyle = "lime";
   ctx.fillRect(HEX_SIZE * cellX + (hOffset * cellX) + BUILDING_OFFSET, HEX_SIZE * cellY + (isEvenColumn ? VERT_HEX_OFFSET : 0) + VERT_MAP_OFFSET, hpPercentage * 32, 4);
 };
 
@@ -916,12 +916,15 @@ const turretAttack = () => {
       if (!attacked) {
         const dist = Math.sqrt(Math.pow((t2.x - t.x), 2) + Math.pow((t2.y - t.y), 2));
         if (dist > 0 && dist < buildings.turret.range && t.cell.aoi !== t2.cell.aoi) {
+          const cellPos = getCellCoordinates(t2.x, t2.y);
           if (t2.cell.building?.turret) {
             if (t2.cell.building?.turret && t.cell.building?.turret) {
               t2.cell.building.turret.hp -= t.cell.building.turret.damage;
             }
             if (t2.cell.building?.turret?.hp <= 0) {
               destroy(t2);
+            } else if (t2.cell.building?.turret?.hp < t2.cell.building?.turret?.totalHP/2) {
+              startParticleSystem(map[t2.x][t2.y].building.id, cellPos[0] + 15, cellPos[1] + 10, { r: 255, g: 100, b: 0}, "up", { initSize: 8, initTtl: 15, maxParticles: 5, speed: 0.5 });
             }
           } else if (t2.cell.building?.refinery) {
             if (t2.cell.building?.refinery && t.cell.building?.turret) {
@@ -929,6 +932,8 @@ const turretAttack = () => {
             }
             if (t2.cell.building?.refinery?.hp <= 0) {
               destroy(t2);
+            } else if (t2.cell.building?.refinery?.hp < t2.cell.building?.refinery?.totalHP/2) {
+              startParticleSystem(map[t2.x][t2.y].building.id, cellPos[0] + 15, cellPos[1] + 10, { r: 255, g: 100, b: 0}, "up", { initSize: 8, initTtl: 15, maxParticles: 5, speed: 0.5 });
             }
           } else if (t2.cell.building?.commandCenter) {
             if (t2.cell.building?.commandCenter && t.cell.building?.turret) {
@@ -936,6 +941,8 @@ const turretAttack = () => {
             }
             if (t2.cell.building?.commandCenter?.hp <= 0) {
               destroy(t2);
+            } else if (t2.cell.building?.commandCenter?.hp < t2.cell.building?.commandCenter?.totalHP/2) {
+              startParticleSystem(map[t2.x][t2.y].building.id, cellPos[0] + 15, cellPos[1] + 10, { r: 255, g: 100, b: 0}, "up", { initSize: 8, initTtl: 15, maxParticles: 5, speed: 0.5 });
             }
           }
           if (map[t.x][t.y].building) {
